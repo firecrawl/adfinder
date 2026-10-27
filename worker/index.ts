@@ -5,6 +5,7 @@ import { DurableObject } from "cloudflare:workers";
 import { Hono, type Context } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { streamSSE } from "hono/streaming";
+import { llmsTxt } from "../shared/docs";
 import { FEATURED } from "../shared/featured";
 import type { Brand, Channel, ChannelData } from "../shared/types";
 import { ApiError, alexandriaFor, credits } from "./alexandria";
@@ -308,7 +309,20 @@ app.post("/api/meta-ad/:id", async (c) => {
 // ---------- MCP ----------
 // Agents pass their own Firecrawl key as a bearer token. The session cookie is never read here, and no
 // tool calls the language model.
+app.get("/llms.txt", (c) => {
+  c.header("cache-control", "public, max-age=3600");
+  return c.text(llmsTxt());
+});
+
 app.all("/mcp", (c) => {
+  // Someone opening the endpoint in a browser gets the setup page instead of a protocol error.
+  const accept = c.req.header("accept") ?? "";
+  if (
+    c.req.method === "GET" &&
+    accept.includes("text/html") &&
+    !accept.includes("text/event-stream")
+  )
+    return c.redirect("/docs");
   const bearer = c.req.header("authorization")?.match(/^Bearer\s+(fc-[A-Za-z0-9]+)$/)?.[1] ?? null;
   const ctx: Ctx = { env: c.env, key: async () => bearer };
   return handleMcp(c.req.raw, {

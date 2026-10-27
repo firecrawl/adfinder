@@ -8,13 +8,15 @@ import { Wordmark } from "./components/ui";
 import { brandParams } from "./format";
 import { BrandPage, type Tab } from "./pages/BrandPage";
 import { ComparePage } from "./pages/ComparePage";
+import { DocsPage } from "./pages/DocsPage";
 import { HomePage } from "./pages/HomePage";
 import { SessionContext } from "./session";
 
 type Route =
   | { page: "home"; compare: boolean }
   | { page: "brand"; brand: Brand; tab: Tab }
-  | { page: "compare"; a: Brand; b: Brand };
+  | { page: "compare"; a: Brand; b: Brand }
+  | { page: "docs" };
 
 const TABS: Tab[] = ["overview", "meta", "google", "podcasts", "creators"];
 const pair = (s: string | null): Brand | null => {
@@ -24,6 +26,7 @@ const pair = (s: string | null): Brand | null => {
 };
 
 function parse(): Route {
+  if (location.pathname === "/docs") return { page: "docs" };
   const p = new URLSearchParams(location.search);
   const a = pair(p.get("a"));
   const b = pair(p.get("b"));
@@ -42,6 +45,7 @@ function parse(): Route {
 
 function url(r: Route) {
   if (r.page === "home") return r.compare ? "/?compare" : "/";
+  if (r.page === "docs") return "/docs";
   if (r.page === "compare")
     return `/?${new URLSearchParams({ a: `${r.a.name}|${r.a.domain}`, b: `${r.b.name}|${r.b.domain}` })}`;
   const p = brandParams(r.brand);
@@ -95,6 +99,17 @@ export default function App() {
           />
         )}
         <span className="spacer" />
+        <a
+          href="/docs"
+          className="navlink"
+          aria-current={route.page === "docs" ? "page" : undefined}
+          onClick={(e) => {
+            e.preventDefault();
+            go({ page: "docs" });
+          }}
+        >
+          MCP
+        </a>
         <ThemeToggle />
         <AccountButton
           onOpen={(v) =>
@@ -135,6 +150,7 @@ export default function App() {
           onOpenBrand={(brand, tab) => go({ page: "brand", brand, tab })}
         />
       )}
+      {route.page === "docs" && <DocsPage />}
       {signIn && <SignInModal mode={signIn} onClose={closeSignIn} />}
     </SessionContext.Provider>
   );

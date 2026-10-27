@@ -35,9 +35,16 @@
         media.addEventListener("change", apply);
       })();
     </script>
+    <link rel="alternate" type="text/markdown" href="/llms.txt" title="adfinder MCP server setup, for agents" />
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Replaced by the app on load; here for agents and readers without JavaScript. -->
+      <div style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%)">
+        <p>adfinder finds the Meta, Google, podcast and creator ads behind any business.</p>
+        <p>AI agents: set up the adfinder MCP server by reading <a href="/llms.txt">/llms.txt</a>.</p>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

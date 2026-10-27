@@ -12,6 +12,7 @@ import {
   postCost,
   creatorSpend,
 } from "../shared/spend";
+import { ENDPOINT, KEYS_URL, SITE } from "../shared/docs";
 import type { Brand, Channel, ChannelData, MetaAdDetail, Verdict } from "../shared/types";
 import { ApiError } from "./alexandria";
 
@@ -21,7 +22,6 @@ export type Lookups = {
   metaAd: (id: string) => Promise<MetaAdDetail>;
 };
 
-const SITE = "https://adfinder.pandor.cc";
 const DAY = 86_400_000;
 const days = (from: string | null, to?: string | null) =>
   from
@@ -169,8 +169,8 @@ const json = (value: unknown) => ({
 });
 
 const NO_KEY = `This brand hasn't been researched yet, so it needs a Firecrawl API key (about 100-200 credits, once; after that it's cached for everyone). Add one with:
-claude mcp add --transport http adfinder ${SITE}/mcp --header "Authorization: Bearer fc-YOUR-KEY"
-Get a key at https://www.firecrawl.dev/app/api-keys`;
+claude mcp add --transport http adfinder ${ENDPOINT} --header "Authorization: Bearer fc-YOUR-KEY"
+Get a key at ${KEYS_URL}. Other clients: ${SITE}/llms.txt`;
 
 async function run(fn: () => Promise<unknown>) {
   try {
