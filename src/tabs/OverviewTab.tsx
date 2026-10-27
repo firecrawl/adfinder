@@ -72,7 +72,7 @@ export function OverviewTab({
               : !data.meta?.advertiser
               ? "none found"
               : data.meta.source === "library"
-                ? "active in Meta's Ad Library"
+                ? "active"
                 : `spend ${data.meta.advertiser.spend ?? "n/a"}`
           }
         />
@@ -84,7 +84,7 @@ export function OverviewTab({
           sub={
             locked("google")
               ? LOCKED
-              : `${data.google?.ads.filter((a) => a.verdict === "winner").length ?? 0} long runners in sample`
+              : `${data.google?.ads.filter((a) => a.verdict === "winner").length ?? 0} long runners`
           }
         />
         <Stat
@@ -105,16 +105,12 @@ export function OverviewTab({
           color="var(--series-ugc)"
           loading={busy("ugc")}
           value={locked("ugc") ? "—" : compact(data.ugc?.totalViews ?? 0)}
-          sub={locked("ugc") ? LOCKED : `${data.ugc?.totalPosts ?? 0} posts on TikTok & Instagram`}
+          sub={locked("ugc") ? LOCKED : `${data.ugc?.totalPosts ?? 0} posts`}
         />
       </div>
 
-      <Card title="Activity timeline" meta="hover for detail">
+      <Card title="Activity timeline">
         <Timeline data={data} />
-        <p className="faint" style={{ marginTop: 12, lineHeight: 1.5 }}>
-          Ad launches come from the sampled ads in each tab. Line up spikes in search interest with
-          launches to spot what moved demand; it's a correlation, not attribution.
-        </p>
       </Card>
       <div style={{ height: 22 }} />
       <Loaded load={state.summary} skeleton={<SummarySkeleton />}>
@@ -191,7 +187,6 @@ function Patterns({ data }: { data: HookPatterns }) {
   return (
     <Card
       title="Hook patterns"
-      meta="opening lines of Meta ads and creator posts"
     >
       <table className="patterns">
         <thead>

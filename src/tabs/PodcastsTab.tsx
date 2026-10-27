@@ -40,13 +40,12 @@ export function PodcastsTab({
               <Stat
                 label="Estimated podcast spend"
                 value={usdRange(podcastSpend(d))}
-                sub="rough · from show size and CPMs"
               />
               <Stat label="Latest read" value={date(d.sponsor.lastSeen)} />
             </div>
             {global && (
               <p className="faint" style={{ margin: "-8px 0 18px" }}>
-                Particle doesn't split podcast ads by country, so this tab shows every market.
+                Podcasts cover every country.
               </p>
             )}
             <div className="card" style={{ marginBottom: 22 }}>
@@ -60,11 +59,8 @@ export function PodcastsTab({
               >
                 <div className="estimate">
                   <p>
-                    Podcast ads are priced per 1,000 downloads (CPM). Host-read mid-rolls run about
-                    $25–$50 CPM in 2026 (Acast, Springcast, Libsyn). Particle doesn't publish
-                    download counts, so each show's popularity score puts it in an audience band,
-                    and every read is priced at that band. Reads outside the top shows count at the
-                    2K–10K band. It's an order-of-magnitude figure, not a reported spend.
+                    Each read is priced at $25–$50 per 1,000 downloads, with audience estimated from
+                    the show's popularity. A rough range, not reported spend.
                   </p>
                   <table>
                     <thead>

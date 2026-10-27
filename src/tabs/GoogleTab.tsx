@@ -34,7 +34,7 @@ export function GoogleTab({ load, brandName }: { load: Load<GoogleData>; brandNa
           </Empty>
         ) : (
           <>
-            <Card title="How long each ad ran" meta="first to last shown · longest 15">
+            <Card title="How long each ad ran" meta="longest 15">
               <Longevity
                 runs={d.ads.map((a) => ({
                   id: a.id,
@@ -49,11 +49,11 @@ export function GoogleTab({ load, brandName }: { load: Load<GoogleData>; brandNa
             <div style={{ height: 28 }} />
             <SectionTitle
               title="Google ads"
-              sub={`${d.advertiser.name} · ${d.totalLabel ?? d.ads.length} ads in Google's Transparency Center · longest-running first`}
+              sub={`${d.advertiser.name} · ${d.totalLabel ?? d.ads.length} ads`}
             />
             <GoogleAdGrid
               ads={[...d.ads].sort((a, b) => b.days - a.days)}
-              note="Advertisers kill losing ads fast. One still running after 90+ days is earning its keep."
+              note="Winner: 90+ days"
             />
           </>
         )

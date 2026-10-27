@@ -192,7 +192,7 @@ type Job =
 type Outcome = { value: unknown } | { error: string; status: number };
 
 const ANALYSES = {
-  summary: ["sum:v2", summarize],
+  summary: ["sum:v3", summarize],
   hooks: ["hooks:v1", hookPatterns],
   translate: ["tr:v1", translateHooks],
 } as const;

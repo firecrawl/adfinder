@@ -151,7 +151,7 @@ export const digests: { [K in Channel]: (d: ChannelData[K]) => unknown } = {
 };
 
 const INSIGHT =
-  '{"title": string, "detail": string (1-2 sentences, cite numbers), "channel": "Meta"|"Google"|"Podcasts"|"UGC"|"Search"}';
+  '{"title": string, "detail": string (one sentence, max 20 words, cite one number), "channel": "Meta"|"Google"|"Podcasts"|"UGC"|"Search"}';
 
 export async function summarize(
   env: GlmEnv,
@@ -173,7 +173,7 @@ Work out what has worked for them, what hasn't, and what a smaller business coul
 - Only use numbers that appear in the research. Skip a channel with no data rather than guessing.
 
 Return JSON only:
-{"industry": string (2-4 words, e.g. "Meal-kit delivery"), "competitors": [{"name": string, "domain": string}] (3 direct competitors you are confident exist), "headline": string (max 12 words), "verdict": string (2 sentences), "worked": [${INSIGHT}] (3-5), "didnt": [${INSIGHT}] (2-4), "steal": [${INSIGHT}] (3-5 tactics another business could copy, concrete), "channels": [{"channel": string, "score": 0-10, "note": string (max 12 words)}] (one per channel with data)}
+{"industry": string (2-4 words, e.g. "Meal-kit delivery"), "competitors": [{"name": string, "domain": string}] (3 direct competitors you are confident exist), "headline": string (max 10 words), "verdict": string (one sentence, max 25 words), "worked": [${INSIGHT}] (3), "didnt": [${INSIGHT}] (2-3), "steal": [${INSIGHT}] (3 tactics another business could copy, concrete), "channels": [{"channel": string, "score": 0-10, "note": string (max 6 words)}] (one per channel with data)}
 
 # Research
 ${research}`;

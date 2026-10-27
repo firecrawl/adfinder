@@ -180,12 +180,11 @@ export function CreatorsTab({ load, brand }: { load: Load<UgcData>; brand: Brand
               <Stat
                 label="Marked as ads"
                 value={pct(d.posts.filter((p) => p.paid).length / d.posts.length)}
-                sub="#ad, sponsored, Anzeige…"
               />
               <Stat
                 label="Estimated creator spend"
                 value={usdRange(creatorSpend(d.posts).range)}
-                sub={`${creatorSpend(d.posts).posts} sponsored posts · 2026 rate cards`}
+                sub={`${creatorSpend(d.posts).posts} sponsored posts`}
               />
             </div>
             <div className="card" style={{ marginBottom: 22 }}>
@@ -206,7 +205,7 @@ export function CreatorsTab({ load, brand }: { load: Load<UgcData>; brand: Brand
                 d.posts.some((p) => p.language && p.language !== "en") ? (
                   <EnglishToggle on={english} load={tr} onChange={setEnglish} />
                 ) : (
-                  "opening lines of the most-viewed posts"
+                  null
                 )
               }
             >
@@ -249,10 +248,8 @@ function SpendMethod() {
   return (
     <div className="estimate">
       <p>
-        Each post marked as an ad (#ad, sponsored, Anzeige…) from a creator who isn't the brand is
-        priced at the 2026 rate card for its platform and the creator's follower tier. Brands don't
-        publish what they pay, so treat this as a list-price range. Real deals often land lower, and
-        bundles, usage rights and whitelisting change the total.
+        Each paid creator post is priced at 2026 rate cards for its platform and follower tier. A
+        list-price range; real deals often land lower.
       </p>
       <table>
         <thead>
@@ -271,9 +268,7 @@ function SpendMethod() {
         </tbody>
       </table>
       <p>
-        Sources: Hootsuite's 2026 influencer pricing benchmarks, with Talentir and Stan reporting
-        similar ranges. OpenSponsorship's median across 1,527 real campaigns was $134 (nano) to
-        $2,727 (mega) per deliverable.
+        Source: Hootsuite 2026 benchmarks.
       </p>
     </div>
   );

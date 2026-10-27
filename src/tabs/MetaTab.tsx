@@ -43,11 +43,8 @@ export function MetaTab({ load, brandName }: { load: Load<MetaData>; brandName: 
               <div className="grid2" style={{ marginBottom: 28 }}>
                 <Card
                   title="Hook themes that keep running"
-                  meta={`${compact(d.advertiser.activeAds)} active ads · spend ${d.advertiser.spend ?? "n/a"}`}
+                  meta={`${compact(d.advertiser.activeAds)} active ads`}
                 >
-                  <p className="muted" style={{ fontSize: 14, lineHeight: 1.55, marginBottom: 16 }}>
-                    {d.brief.summary}
-                  </p>
                   <div className="themes">
                     {d.brief.hookThemes.map((t) => (
                       <div className="theme" key={t.name}>
@@ -75,7 +72,7 @@ export function MetaTab({ load, brandName }: { load: Load<MetaData>; brandName: 
                 </Card>
               </div>
             )}
-            <Card title="How long each ad has run" meta="start date to today · longest 15">
+            <Card title="How long each ad has run" meta="longest 15">
               <Longevity
                 runs={d.ads.map((a) => ({
                   id: a.id,
@@ -92,16 +89,16 @@ export function MetaTab({ load, brandName }: { load: Load<MetaData>; brandName: 
               title="Best-performing Meta ads"
               sub={
                 d.source === "library"
-                  ? `From Meta's Ad Library · ${compact(d.advertiser.activeAds)} results · sorted by impressions`
-                  : "Ranked by Meta's delivery signal"
+                  ? `${compact(d.advertiser.activeAds)} in Meta's Ad Library`
+                  : "Ranked by delivery"
               }
             />
             <MetaAdGrid
               ads={d.ads}
               note={
                 d.source === "library"
-                  ? "Winner = still running after 60+ days"
-                  : "Winner = still running after 30+ days at high delivery"
+                  ? "Winner: 60+ days"
+                  : "Winner: 30+ days, high delivery"
               }
             />
           </>

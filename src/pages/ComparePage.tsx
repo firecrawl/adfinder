@@ -117,7 +117,7 @@ export function ComparePage({
             </button>
           }
         >
-          The comparison agent researches both brands live through Firecrawl Alexandria.
+          Both brands are researched live.
         </Empty>
       )}
       {ready && !result && (
@@ -504,10 +504,6 @@ function Numbers({ a, b, sa, sb }: { a: Brand; b: Brand; sa: BrandState; sb: Bra
           </div>
         );
       })}
-      <p className="faint" style={{ marginTop: 14 }}>
-        Spend figures are estimates from public rate cards; ad counts come from each platform's
-        transparency library.
-      </p>
     </div>
   );
 }
