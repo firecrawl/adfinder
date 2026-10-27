@@ -31,7 +31,9 @@ export function AccountButton({ onOpen }: { onOpen: (v: Visit) => void }) {
     return (
       <button className="btn" onClick={() => openSignIn()}>
         <img src="/firecrawl.svg" alt="" />
-        Sign in<span className="wide-only"> with Firecrawl</span>
+        <span>
+          Sign in<span className="wide-only"> with Firecrawl</span>
+        </span>
       </button>
     );
   }

@@ -98,10 +98,28 @@ export const TOOLS: ToolDoc[] = [
   },
 ];
 
-export const PROMPTS = [
-  "Which of Factor's Meta ads have run longest, and what hooks do they open with?",
-  "Compare HelloFresh's and Hungryroot's podcast sponsorships.",
-  "What creator hooks got AG1 the most views? Write me three for my own brand in that style.",
+// Real Claude Code runs against the live server (October 2026), answers trimmed.
+export type Example = { prompt: string; calls: string[]; answer: string };
+export const EXAMPLES: Example[] = [
+  {
+    prompt: "Which of Factor's Meta ads have run longest, and what hooks do they open with?",
+    calls: [
+      `find_advertiser(query: "Factor")`,
+      `get_ads(name: "Factor", domain: "factor75.com", platform: "meta", filter: "long_runners")`,
+    ],
+    answer: `The longest runners have been live 220-245 days, all at 5/5 delivery strength: "GLP-1 medication helped me start my weight-loss journey. But Factor made it stick." (245 days), "Want to look toned. Then why are you ignoring fiber?" (242) and "Factor isn't just like every other meal kit. It's a high-protein cheat code." (229). The pattern: protein for fitness audiences, myth-busting and question openers, 86% video, nearly all closing on 50% off the first box.`,
+  },
+  {
+    prompt: "How much is HelloFresh spending on podcast ads, and on which shows?",
+    calls: [`get_ads(name: "HelloFresh", domain: "hellofresh.com", platform: "podcasts")`],
+    answer: `Roughly $320K-$3.2M, a list-price estimate at $25-50 CPM rather than a reported figure. There are 2,274 ad reads across 523 shows, peaking at 449 reads in September 2026. The top shows by reads are Journey to Truth Podcast Classics (150), Foul Territory (69), The Bobby Bones Show (69) and Hall of Fame with Booker T (57).`,
+  },
+  {
+    prompt:
+      "Which creator posts got Liquid Death the most views, and what hooks did they open with?",
+    calls: [`get_ads(name: "Liquid Death", domain: "liquiddeath.com", platform: "creators")`],
+    answer: `The Croes brothers drove most of the views: @gilmhercroes 1.6M on TikTok, @jayden 820K on Instagram and @jaydencroes 317K, all opening with "Liquid Death X Uncanny Brothers, new KILLBERT GRAPE soda-flavored sparkling water is out!" Next was @its.terrica with 319K ("Roomdadompt never felt better yall!"). None were marked as paid.`,
+  },
 ];
 
 export const AGENT_PROMPT = `Read ${SITE}/llms.txt and set up the adfinder MCP server for me.`;
@@ -119,7 +137,7 @@ MCP endpoint: ${ENDPOINT} (Streamable HTTP, stateless, JSON responses)
 
 Authentication is the user's own Firecrawl API key as a bearer token: \`Authorization: Bearer fc-...\`. Keys come from ${KEYS_URL}. If you are an agent setting this up, ask the user for their key, or use FIRECRAWL_API_KEY from their environment if it is set. Never print the key back.
 
-Without a key, only brands already cached work, including ${FREE_BRANDS}.
+Without a key, only brands already cached work, including ${FREE_BRANDS}. Firecrawl's keyless mode does not cover the ad data providers, so a brand nobody has looked up needs a key.
 
 ${CLIENTS.map((c) => `### ${c.name}\n\n${c.where}:\n\n\`\`\`${c.lang}\n${c.code}\n\`\`\``).join("\n\n")}
 
@@ -137,6 +155,6 @@ Cached brands are free and instant. A brand nobody has looked up costs roughly 1
 
 ## Example requests
 
-${PROMPTS.map((p) => `- ${p}`).join("\n")}
+${EXAMPLES.map((e) => `- ${e.prompt}`).join("\n")}
 `;
 }

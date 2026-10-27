@@ -1,12 +1,12 @@
-import { Bot, Check, Copy, KeyRound } from "lucide-react";
+import { Bot, Check, Copy, KeyRound, Wrench } from "lucide-react";
 import { useState } from "react";
 import {
   AGENT_PROMPT,
   CLIENTS,
   ENDPOINT,
+  EXAMPLES,
   FREE_BRANDS,
   KEYS_URL,
-  PROMPTS,
   TOOLS,
 } from "../../shared/docs";
 import { Card, SectionTitle } from "../components/ui";
@@ -72,6 +72,27 @@ export function DocsPage() {
         <CopyButton text={AGENT_PROMPT} />
       </div>
 
+      <SectionTitle title="What you can ask" sub="Real runs in Claude Code, answers trimmed" />
+      <div className="examples">
+        {EXAMPLES.map((e) => (
+          <article className="example" key={e.prompt}>
+            <div className="ask">
+              <span>{e.prompt}</span>
+              <CopyButton text={e.prompt} />
+            </div>
+            <div className="calls">
+              {e.calls.map((call) => (
+                <code key={call}>
+                  <Wrench size={12} />
+                  {call}
+                </code>
+              ))}
+            </div>
+            <p className="answer">{e.answer}</p>
+          </article>
+        ))}
+      </div>
+
       <SectionTitle title="Set it up" sub="Replace fc-YOUR-KEY with your Firecrawl API key." />
       <div className="tabs" role="tablist">
         {CLIENTS.map((x) => (
@@ -93,50 +114,39 @@ export function DocsPage() {
         and needs no key.
       </p>
 
-      <div className="docs-grid">
-        <Card title="Tools" meta="3 tools, ads only">
-          <div className="tools">
-            {TOOLS.map((t) => (
-              <div key={t.name}>
-                <code>
-                  {t.name}({t.args})
-                </code>
-                <p>{t.does}</p>
-              </div>
-            ))}
-          </div>
-        </Card>
-        <Card
-          title={
-            <span className="with-ico">
-              <KeyRound size={15} /> Keys and credits
-            </span>
-          }
-        >
-          <div className="prose-sm">
-            <p>
-              The server runs on your Firecrawl credits, using the key your agent sends. Get one at{" "}
-              <a href={KEYS_URL} target="_blank" rel="noreferrer">
-                firecrawl.dev
-              </a>
-              .
-            </p>
-            <p>
-              Brands anyone has already looked up are cached, so they're free and instant. A new
-              brand costs about 100–200 credits once, then it's cached for everyone.
-            </p>
-            <p>No key at all? These work anyway: {FREE_BRANDS}.</p>
-            <p>adfinder never runs a language model for MCP calls and never stores your key.</p>
-          </div>
-        </Card>
-      </div>
+      <Card
+        className="docs-keys"
+        title={
+          <span className="with-ico">
+            <KeyRound size={15} /> Keys and credits
+          </span>
+        }
+      >
+        <div className="prose-sm">
+          <p>
+            The server runs on your Firecrawl credits, using the key your agent sends. Get one at{" "}
+            <a href={KEYS_URL} target="_blank" rel="noreferrer">
+              firecrawl.dev
+            </a>
+            . Brands anyone has already looked up are cached, so they're free and instant. A new
+            brand costs about 100–200 credits once, then it's cached for everyone.
+          </p>
+          <p>
+            No key at all? Cached brands still work, including {FREE_BRANDS}. Firecrawl's keyless
+            mode doesn't cover the ad data providers, so new brands need a key.
+          </p>
+          <p>adfinder never runs a language model for MCP calls and never stores your key.</p>
+        </div>
+      </Card>
 
-      <SectionTitle title="Try asking" />
-      <div className="prompts">
-        {PROMPTS.map((p) => (
-          <div className="prompt" key={p}>
-            <span>“{p}”</span>
-            <CopyButton text={p} />
+      <SectionTitle title="How the tools work" sub="Your agent picks these itself" />
+      <div className="tools card">
+        {TOOLS.map((t) => (
+          <div key={t.name}>
+            <code>
+              {t.name}({t.args})
+            </code>
+            <p>{t.does}</p>
           </div>
         ))}
       </div>
