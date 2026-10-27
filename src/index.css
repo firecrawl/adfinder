@@ -334,7 +334,7 @@ p {
 
 /* ---------- home ---------- */
 .home {
-  min-height: calc(100vh - 64px);
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -399,18 +399,31 @@ p {
   gap: 10px;
   width: 100%;
 }
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
 .footer {
   margin-top: auto;
-  padding-top: 48px;
-  font-size: 12px;
-  color: var(--faint);
   display: flex;
-  gap: 6px;
+  justify-content: center;
+  padding: 40px 16px 32px;
+}
+.footer a {
+  display: inline-flex;
   align-items: center;
+  gap: 9px;
+  font-size: 18px;
+  color: var(--faint);
+}
+.footer a:hover {
+  color: var(--text-2);
+  text-decoration: none;
 }
 .footer img {
-  width: 14px;
-  height: 14px;
+  width: 21px;
+  height: 21px;
 }
 
 /* ---------- search box ---------- */
@@ -550,6 +563,7 @@ p {
 
 /* ---------- brand page ---------- */
 .page {
+  width: 100%;
   max-width: 1180px;
   margin: 0 auto;
   padding: 0 28px 80px;

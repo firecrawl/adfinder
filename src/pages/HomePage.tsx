@@ -103,10 +103,6 @@ export function HomePage({
           </div>
         </section>
       )}
-      <div className="footer">
-        <img src="/firecrawl.svg" alt="" />
-        Powered by Firecrawl
-      </div>
     </main>
   );
 }

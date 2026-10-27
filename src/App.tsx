@@ -151,6 +151,12 @@ export default function App() {
         />
       )}
       {route.page === "docs" && <DocsPage />}
+      <footer className="footer">
+        <a href="https://www.firecrawl.dev" target="_blank" rel="noreferrer">
+          <img src="/firecrawl.svg" alt="" />
+          Powered by Firecrawl
+        </a>
+      </footer>
       {signIn && <SignInModal mode={signIn} onClose={closeSignIn} />}
     </SessionContext.Provider>
   );
