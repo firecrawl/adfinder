@@ -1,7 +1,8 @@
 import { ChevronDown, Globe, GitCompareArrows, RefreshCw } from "lucide-react";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useEffectEvent, useState, type ReactNode } from "react";
 import type { Brand, Channel } from "../../shared/types";
-import { useBrand, type BrandState } from "../api";
+import { api, useBrand, type BrandState } from "../api";
+import { Empty, SignInPrompt } from "../components/ui";
 import { COUNTRIES, logo } from "../format";
 import { remember } from "../recent";
 import { CreatorsTab } from "../tabs/CreatorsTab";
@@ -25,16 +26,7 @@ const count = (s: BrandState, ch: Channel): number | null => {
         : null;
 };
 
-export function BrandPage({
-  brand,
-  tab,
-  epoch,
-  onTab,
-  onCompare,
-  onCompareWith,
-  onCountry,
-  onRefresh,
-}: {
+type BrandPageProps = {
   brand: Brand;
   tab: Tab;
   epoch: number;
@@ -43,7 +35,61 @@ export function BrandPage({
   onCompareWith: (b: Brand) => void;
   onCountry: (country: string) => void;
   onRefresh: () => void;
-}) {
+  onResolve: (b: Brand) => void;
+};
+
+// A brand typed without a website gets one looked up first, so the ad sources can match on the
+// domain instead of the name alone.
+export function BrandPage(props: BrandPageProps) {
+  const { brand, onResolve } = props;
+  const [nameOnly, setNameOnly] = useState<string | null>(null);
+  if (!brand.domain && nameOnly !== brand.name)
+    return (
+      <FindSite
+        key={brand.name}
+        name={brand.name}
+        onFound={(domain) => (domain ? onResolve({ ...brand, domain }) : setNameOnly(brand.name))}
+      />
+    );
+  return <BrandView {...props} />;
+}
+
+function FindSite({ name, onFound }: { name: string; onFound: (domain: string) => void }) {
+  const [signIn, setSignIn] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const found = useEffectEvent(onFound);
+  useEffect(() => {
+    api<{ domain: string }>("/api/resolve", { name }).then(
+      (r) => found(r.domain),
+      (e: Error & { auth?: string }) => (e.auth ? setSignIn(true) : setError(e.message)),
+    );
+  }, [name]);
+  return (
+    <main className="page">
+      {signIn ? (
+        <SignInPrompt />
+      ) : error ? (
+        <Empty title={`Couldn't look up ${name}`}>{error}</Empty>
+      ) : (
+        <div className="finding">
+          <span className="spin" />
+          Finding {name}'s website with Firecrawl…
+        </div>
+      )}
+    </main>
+  );
+}
+
+function BrandView({
+  brand,
+  tab,
+  epoch,
+  onTab,
+  onCompare,
+  onCompareWith,
+  onCountry,
+  onRefresh,
+}: BrandPageProps) {
   const state = useBrand(brand, epoch);
   useEffect(() => remember(brand), [brand]);
   const tabs: [Tab, string, Channel | null][] = [

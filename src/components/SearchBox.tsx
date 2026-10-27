@@ -29,7 +29,14 @@ export function SearchBox({
   const [focused, setFocused] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   const q = text.trim();
-  const items = q && picked?.name !== text && found.q === q ? found.items : [];
+  const typing = !!q && picked?.name !== text;
+  const known = typing && found.q === q ? found.items : [];
+  const squash = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+  // What was typed is always an option, for brands no suggestion covers.
+  const items: Brand[] =
+    typing && !known.some((b) => squash(b.name) === squash(q))
+      ? [...known, { name: q, domain: "" }]
+      : known;
 
   useEffect(() => {
     if (focusOnMount) input.current?.focus();
@@ -59,7 +66,6 @@ export function SearchBox({
     const top = items[active];
     if (top) choose(top);
     else if (picked && picked.name === text) choose(picked);
-    else if (q) choose({ name: q, domain: "" });
   };
   const open = focused && items.length > 0;
 
@@ -127,8 +133,14 @@ export function SearchBox({
               onMouseEnter={() => setActive(i)}
               onClick={() => choose(b)}
             >
-              <img src={logo(b.domain, 64)} alt="" />
-              <span className="nm">{b.name}</span>
+              {b.domain ? (
+                <img src={logo(b.domain, 64)} alt="" />
+              ) : (
+                <span className="typed">
+                  <Search size={15} />
+                </span>
+              )}
+              <span className="nm">{b.domain ? b.name : `Search “${b.name}”`}</span>
               <span className="dm">{b.domain}</span>
             </button>
           ))}

@@ -140,6 +140,7 @@ export default function App() {
             clearMemo();
             setEpoch((e) => e + 1);
           }}
+          onResolve={(brand) => go({ ...route, brand }, true)}
         />
       )}
       {route.page === "compare" && (

@@ -8,7 +8,7 @@ import { streamSSE } from "hono/streaming";
 import { llmsTxt } from "../shared/docs";
 import { FEATURED } from "../shared/featured";
 import type { Brand, Channel, ChannelData } from "../shared/types";
-import { ApiError, alexandriaFor, credits } from "./alexandria";
+import { ApiError, alexandriaFor, credits, webSearch } from "./alexandria";
 import { compare, digests, hookPatterns, summarize, translateHooks, type GlmEnv } from "./llm";
 import { handleMcp } from "./mcp";
 import { CHANNELS, metaAdDetail } from "./sources";
@@ -200,6 +200,47 @@ async function suggest(query: string): Promise<Suggestion[]> {
     .sort((a, b) => Number(exact(b)) - Number(exact(a)))
     .slice(0, 6);
 }
+
+// Profiles and directories that rank for a company's name but aren't its own site.
+const NOT_OWN_SITE =
+  /(^|\.)(wikipedia\.org|linkedin\.com|crunchbase\.com|x\.com|twitter\.com|facebook\.com|instagram\.com|youtube\.com|github\.com|reddit\.com|medium\.com|ycombinator\.com|g2\.com|producthunt\.com|pitchbook\.com|bloomberg\.com|glassdoor\.com|tiktok\.com|apple\.com|play\.google\.com)$/;
+
+const hostOf = (url: string) => new URL(url).hostname.replace(/^www\./, "");
+// The registrable label: "graza" for www.graza.co, "huel-usa" for huel-usa.com.
+const labelOf = (host: string) => squash(host.split(".").slice(-2)[0] ?? "");
+
+// For a name nothing else recognised: a Firecrawl web search for its official site. A result whose
+// domain is the name ("graza.co" for "Graza olive oil") beats one whose title merely mentions it,
+// which is how articles and reviews rank.
+async function officialSite(
+  key: string,
+  name: string,
+): Promise<Suggestion & { description?: string }> {
+  const want = squash(name);
+  const results = (await webSearch(key, `${name} official website`)).filter(
+    (r) => !NOT_OWN_SITE.test(hostOf(r.url)),
+  );
+  const byDomain = results.find((r) => {
+    const label = labelOf(hostOf(r.url));
+    return label.length >= 3 && (want.startsWith(label) || label.startsWith(want));
+  });
+  const own = byDomain ?? results.find((r) => squash(r.title ?? "").startsWith(want));
+  return own
+    ? { name, domain: hostOf(own.url), description: own.description }
+    : { name, domain: "" };
+}
+
+app.post("/api/resolve", async (c) => {
+  const { name } = brandFrom(await c.req.json());
+  const cacheKey = `res:v1:${squash(name)}`;
+  const hit = await c.env.CACHE.get(cacheKey, "json");
+  if (hit) return c.json(hit);
+  const key = await apiKey(c);
+  if (!key) throw new ApiError(SIGN_IN.channel, 401);
+  const found = await officialSite(key, name);
+  await c.env.CACHE.put(cacheKey, JSON.stringify(found), { expirationTtl: MONTH });
+  return c.json(found);
+});
 
 app.get("/api/suggest", async (c) => {
   const cache = caches.default;

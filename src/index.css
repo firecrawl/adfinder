@@ -551,6 +551,15 @@ p {
   border: 1px solid var(--line);
   background: var(--card);
 }
+.suggest .typed {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  color: var(--muted);
+}
 .suggest .nm {
   font-size: 15px;
   color: var(--text);
@@ -2485,4 +2494,13 @@ button.row:hover {
   .agent-callout {
     flex-wrap: wrap;
   }
+}
+.finding {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 120px 0;
+  color: var(--muted);
+  font-size: 15px;
 }

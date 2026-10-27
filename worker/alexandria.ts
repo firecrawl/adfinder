@@ -23,9 +23,10 @@ async function post(
   key: string,
   body: unknown,
   pick: (j: any) => { data?: any; retryAfter?: number; error?: string },
+  endpoint = "scrape",
 ) {
   for (let attempt = 0; attempt < 4; attempt++) {
-    const r = await fetch(`${FIRECRAWL}/scrape`, {
+    const r = await fetch(`${FIRECRAWL}/${endpoint}`, {
       method: "POST",
       headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
       body: JSON.stringify(body),
@@ -79,6 +80,10 @@ export function alexandriaFor(key: string): Alexandria {
     );
   return Object.assign(call, { html });
 }
+
+export type WebResult = { url: string; title?: string; description?: string };
+export const webSearch = (key: string, query: string, limit = 5): Promise<WebResult[]> =>
+  post(key, { query, limit }, (j) => ({ data: j.data?.web ?? [] }), "search");
 
 export async function credits(key: string) {
   const r = await fetch(`${FIRECRAWL}/team/credit-usage`, {
