@@ -144,19 +144,72 @@ app.post("/api/auth/logout", (c) => {
 });
 
 // ---------- brand autocomplete (free: Clearbit's public company suggest) ----------
-async function suggest(query: string): Promise<{ name: string; domain: string }[]> {
+type Suggestion = { name: string; domain: string };
+const squash = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+const GUESS_TLDS = ["com", "ai", "io", "dev", "co"];
+
+// A candidate domain only counts if its home page title names the brand, which drops parked domains
+// and same-name companies (exa.com is a Dassault product; Exa is exa.ai).
+async function siteNamed(candidate: string, q: string): Promise<Suggestion | null> {
+  try {
+    const r = await fetch(`https://${candidate}`, {
+      headers: { "user-agent": "Mozilla/5.0 (compatible; adfinder/1.0)" },
+      signal: AbortSignal.timeout(1500),
+    });
+    if (!r.ok) return null;
+    const title =
+      (await r.text())
+        .slice(0, 100_000)
+        .match(/<title[^>]*>([^<]*)</i)?.[1]
+        ?.trim() ?? "";
+    const host = new URL(r.url).hostname.replace(/^www\./, "");
+    if (!squash(title).includes(squash(q)) || title.toLowerCase().includes(host)) return null;
+    const name = title.split(/\s[|\-–—:·]\s/)[0]!.trim();
+    return {
+      name: squash(name).includes(squash(q)) && name.length <= 40 ? name : q,
+      domain: host,
+    };
+  } catch {
+    return null;
+  }
+}
+
+// Clearbit's free lookup doesn't know many newer companies (Firecrawl, Tavily), so unless it already
+// has the name at its own domain, the name's likely domains are tried too.
+async function suggest(query: string): Promise<Suggestion[]> {
   const q = query.trim().slice(0, 60);
   if (!q) return [];
   const r = await fetch(
     `https://autocomplete.clearbit.com/v1/companies/suggest?query=${encodeURIComponent(q)}`,
   );
   const rows: any[] = r.ok ? await r.json() : [];
-  return rows.slice(0, 6).map((x) => ({ name: x.name, domain: x.domain }));
+  const known: Suggestion[] = rows.map((x) => ({ name: x.name, domain: x.domain }));
+  const exact = (b: Suggestion) => squash(b.name) === squash(q);
+  const label = squash(q.split(".")[0]!);
+  let guessed: Suggestion[] = [];
+  const looksLikeDomain = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/i.test(q);
+  const settled = known.some((b) => exact(b) && b.domain.startsWith(`${label}.`));
+  if (!settled && (looksLikeDomain || /^[a-z0-9 -]{3,30}$/i.test(q))) {
+    const hosts = looksLikeDomain ? [q.toLowerCase()] : GUESS_TLDS.map((t) => `${label}.${t}`);
+    const found = await Promise.all(hosts.map((h) => siteNamed(h, label)));
+    guessed = found.filter((b): b is Suggestion => !!b);
+  }
+  const seen = new Set<string>();
+  return [...guessed, ...known]
+    .filter((b) => b.domain && !seen.has(b.domain) && seen.add(b.domain))
+    .sort((a, b) => Number(exact(b)) - Number(exact(a)))
+    .slice(0, 6);
 }
 
 app.get("/api/suggest", async (c) => {
-  c.header("cache-control", "public, max-age=86400");
-  return c.json(await suggest(c.req.query("q") ?? ""));
+  const cache = caches.default;
+  const hit = await cache.match(c.req.raw);
+  if (hit) return hit;
+  const res = c.json(await suggest(c.req.query("q") ?? ""), 200, {
+    "cache-control": "public, max-age=86400",
+  });
+  c.executionCtx.waitUntil(cache.put(c.req.raw, res.clone()));
+  return res;
 });
 
 // ---------- channels ----------
