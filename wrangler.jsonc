@@ -1,0 +1,18 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "adfinder",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  // Create once with `bunx wrangler kv namespace create CACHE` and put its id here.
+  "kv_namespaces": [{ "binding": "CACHE", "id": "00000000000000000000000000000000" }],
+  // One Research object per cache key runs each lookup once, even across page refreshes.
+  "durable_objects": { "bindings": [{ "name": "RESEARCH", "class_name": "Research" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Research"] }],
+  // Refreshes the featured brands before Meta's signed image links (about four days) expire.
+  "triggers": { "crons": ["0 6 */3 * *"] },
+  "observability": { "enabled": true }
+}

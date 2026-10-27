@@ -1,0 +1,21 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": [
+    "jsx-a11y",
+    "oxc",
+    "react",
+    "typescript"
+  ],
+  "rules": {
+    "react/rules-of-hooks": "error",
+    "react/only-export-components": [
+      "warn",
+      {
+        "allowConstantExport": true
+      }
+    ],
+    "react/exhaustive-deps": "error",
+    "jsx-a11y/alt-text": "error",
+    "react/react-in-jsx-scope": "off"
+  }
+}

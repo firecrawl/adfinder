@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>adfinder · every ad behind any business</title>
+    <meta name="description" content="Type any business and see its Meta and Google ads, podcast sponsorships and creator campaigns, what's worked and what to copy. Built on Firecrawl Alexandria." />
+    <meta property="og:title" content="adfinder" />
+    <meta property="og:description" content="Every ad, sponsorship and creator campaign behind any business. Built on Firecrawl Alexandria." />
+    <meta property="og:url" content="https://adfinder.pandor.cc/" />
+    <meta property="og:site_name" content="adfinder" />
+    <meta property="og:image" content="https://adfinder.pandor.cc/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="The adfinder home page: a search box for any business, with HelloFresh, Factor, Hungryroot, AG1 and Liquid Death as examples." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <script>
+      // Applied before first paint so a chosen theme never flashes the other one.
+      (() => {
+        const media = matchMedia("(prefers-color-scheme: dark)");
+        const apply = () => {
+          let t = null;
+          try {
+            t = localStorage.getItem("adfinder:theme");
+          } catch {}
+          document.documentElement.dataset.theme =
+            t === "light" || t === "dark" ? t : media.matches ? "dark" : "light";
+        };
+        apply();
+        media.addEventListener("change", apply);
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
