@@ -9,6 +9,7 @@ import { FEATURED } from "../shared/featured";
 import type { Brand, Channel, ChannelData } from "../shared/types";
 import { ApiError, alexandriaFor, credits } from "./alexandria";
 import { compare, digests, hookPatterns, summarize, translateHooks, type GlmEnv } from "./llm";
+import { handleMcp } from "./mcp";
 import { CHANNELS, metaAdDetail } from "./sources";
 
 type Env = GlmEnv & {
@@ -142,15 +143,19 @@ app.post("/api/auth/logout", (c) => {
 });
 
 // ---------- brand autocomplete (free: Clearbit's public company suggest) ----------
-app.get("/api/suggest", async (c) => {
-  const q = (c.req.query("q") ?? "").trim().slice(0, 60);
-  if (!q) return c.json([]);
+async function suggest(query: string): Promise<{ name: string; domain: string }[]> {
+  const q = query.trim().slice(0, 60);
+  if (!q) return [];
   const r = await fetch(
     `https://autocomplete.clearbit.com/v1/companies/suggest?query=${encodeURIComponent(q)}`,
   );
   const rows: any[] = r.ok ? await r.json() : [];
+  return rows.slice(0, 6).map((x) => ({ name: x.name, domain: x.domain }));
+}
+
+app.get("/api/suggest", async (c) => {
   c.header("cache-control", "public, max-age=86400");
-  return c.json(rows.slice(0, 6).map((x) => ({ name: x.name, domain: x.domain })));
+  return c.json(await suggest(c.req.query("q") ?? ""));
 });
 
 // ---------- channels ----------
@@ -300,6 +305,19 @@ app.post("/api/meta-ad/:id", async (c) => {
   return c.json(await research(ctxOf(c), { kind: "ad", id }));
 });
 
+// ---------- MCP ----------
+// Agents pass their own Firecrawl key as a bearer token. The session cookie is never read here, and no
+// tool calls the language model.
+app.all("/mcp", (c) => {
+  const bearer = c.req.header("authorization")?.match(/^Bearer\s+(fc-[A-Za-z0-9]+)$/)?.[1] ?? null;
+  const ctx: Ctx = { env: c.env, key: async () => bearer };
+  return handleMcp(c.req.raw, {
+    suggest,
+    channel: (brand, ch) => channel(ctx, brand, ch),
+    metaAd: (id) => research(ctx, { kind: "ad", id }),
+  });
+});
+
 // ---------- language model ----------
 const ALL = Object.keys(CHANNELS) as Channel[];
 
@@ -356,7 +374,8 @@ app.post("/api/compare", async (c) => {
 // Re-fetches every featured brand. A channel that fails keeps its previous copy.
 async function seedFeatured(env: Env) {
   const seedKey = env.SEED_FIRECRAWL_API_KEY;
-  if (!seedKey) return console.warn("SEED_FIRECRAWL_API_KEY is not set; featured brands not refreshed");
+  if (!seedKey)
+    return console.warn("SEED_FIRECRAWL_API_KEY is not set; featured brands not refreshed");
   for (const brand of FEATURED) {
     const ctx: Ctx = { env, key: async () => seedKey, refresh: true };
     try {

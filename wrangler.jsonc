@@ -5,7 +5,7 @@
   "compatibility_date": "2026-10-01",
   "assets": {
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/api/*"]
+    "run_worker_first": ["/api/*", "/mcp"]
   },
   "kv_namespaces": [{ "binding": "CACHE", "id": "e1d94ae3b8f6498bbdd9655a6effb383" }],
   "routes": [{ "pattern": "adfinder.pandor.cc", "custom_domain": true }],
