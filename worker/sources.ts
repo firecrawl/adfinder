@@ -549,7 +549,20 @@ async function bbbReviews(alex: Alexandria, brand: Brand) {
   if (brand.country && brand.country !== "US" && brand.country !== "CA") return null;
   const country = brand.country === "CA" ? "ca" : "us";
   const found = await alex(BBB, "businesses/search", { query: brand.name, country });
-  const hit = (found.results ?? []).find((r: any) => sameBrand(brand, r.name));
+  // Names collide ("Factor Property Management"), so the profile's website has to be the brand's.
+  let hit: any = null;
+  for (const r of (found.results ?? []).filter((r: any) => sameBrand(brand, r.name)).slice(0, 2)) {
+    const profile = await alex(BBB, "businesses/profile", {
+      bbb_id: r.bbb_id,
+      business_id: r.business_id,
+      country,
+    }).catch(() => null);
+    const sites = [profile?.website, ...(profile?.additional_websites ?? [])].filter(Boolean);
+    if (sites.some((w: string) => root(w) === root(brand.domain))) {
+      hit = r;
+      break;
+    }
+  }
   if (!hit) return null;
   const id = { bbb_id: hit.bbb_id, business_id: hit.business_id, country };
   const [first, reviews] = await Promise.all([
