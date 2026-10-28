@@ -9,7 +9,15 @@ import { llmsTxt } from "../shared/docs";
 import { FEATURED } from "../shared/featured";
 import type { Brand, Channel, ChannelData } from "../shared/types";
 import { ApiError, alexandriaFor, credits, webSearch } from "./alexandria";
-import { compare, digests, hookPatterns, summarize, translateHooks, type GlmEnv } from "./llm";
+import {
+  compare,
+  complaintsVsAds,
+  digests,
+  hookPatterns,
+  summarize,
+  translateHooks,
+  type GlmEnv,
+} from "./llm";
 import { handleMcp } from "./mcp";
 import { CHANNELS, metaAdDetail } from "./sources";
 
@@ -289,6 +297,7 @@ const ANALYSES = {
   summary: ["sum:v3", summarize],
   hooks: ["hooks:v1", hookPatterns],
   translate: ["tr:v1", translateHooks],
+  complaints: ["gap:v1", complaintsVsAds],
 } as const;
 
 // Particle and Similarweb have no country filter, so every country view shares one copy.

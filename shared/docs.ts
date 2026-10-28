@@ -92,6 +92,11 @@ export const TOOLS: ToolDoc[] = [
     does: "A business's ads on one platform: meta (Facebook and Instagram, with hooks and copy), google (Ads Transparency Center, longest-running first), podcasts (sponsored reads, shows, audio, spend estimate) or creators (TikTok and Instagram posts by views, with cost estimates). filter is running, long_runners or cut_fast, for meta and google.",
   },
   {
+    name: "get_reviews",
+    args: "name, domain, country?",
+    does: "The most critical App Store reviews and newest BBB complaints, with ratings and complaint counts by type. Pair with get_ads to see which complaints the ads answer.",
+  },
+  {
     name: "get_meta_ad",
     args: "id",
     does: "One Meta ad's offer, call to action, landing page and video transcript. Works for brands Upspring indexes.",
@@ -127,7 +132,7 @@ export const AGENT_PROMPT = `Read ${SITE}/llms.txt and set up the adfinder MCP s
 export function llmsTxt() {
   return `# adfinder
 
-> adfinder finds the ads behind any business: Meta (Facebook and Instagram) and Google ads, podcast sponsorships and TikTok and Instagram creator campaigns, with how long each ad ran. Its MCP server gives an agent that data. It never summarises; the agent's own model does that.
+> adfinder finds the ads behind any business: Meta (Facebook and Instagram) and Google ads, podcast sponsorships and TikTok and Instagram creator campaigns, with how long each ad ran, plus the complaints in its App Store reviews and BBB file. Its MCP server gives an agent that data. It never summarises; the agent's own model does that.
 
 Web app: ${SITE}
 Docs for people: ${SITE}/docs

@@ -1,6 +1,13 @@
 import { Lightbulb, Sparkles, ThumbsDown, ThumbsUp } from "lucide-react";
 import type { ReactNode } from "react";
-import type { Brand, ChannelData, HookPatterns, Insight } from "../../shared/types";
+import type {
+  Brand,
+  ChannelData,
+  Complaints,
+  HookPatterns,
+  Insight,
+  ReviewsData,
+} from "../../shared/types";
 import type { BrandState, Load } from "../api";
 import { Accordion, Card, Loaded, SignInPrompt, Stat } from "../components/ui";
 import { Timeline } from "../components/Timeline";
@@ -42,6 +49,7 @@ export function OverviewTab({
     ugc: okData(state.ugc),
     trends: okData(state.trends),
     traffic: okData(state.traffic),
+    reviews: okData(state.reviews),
   };
   const busy = (k: keyof ChannelData) => state[k].status === "loading";
   // Part of a brand can be cached while the rest still needs a Firecrawl key.
@@ -178,6 +186,17 @@ export function OverviewTab({
       <Loaded load={state.hooks} skeleton={<div className="skeleton" style={{ height: 220 }} />}>
         {(h) => <Patterns data={h} />}
       </Loaded>
+      {state.complaints?.status !== "error" && (
+        <>
+          <div style={{ height: 22 }} />
+          <Loaded
+            load={state.complaints}
+            skeleton={<div className="skeleton" style={{ height: 260 }} />}
+          >
+            {(c) => <ComplaintsCard data={c} reviews={data.reviews} />}
+          </Loaded>
+        </>
+      )}
     </>
   );
 }
@@ -219,6 +238,54 @@ function Patterns({ data }: { data: HookPatterns }) {
           ))}
         </tbody>
       </table>
+    </Card>
+  );
+}
+
+const STATUS = {
+  addressed: ["winner", "Addressed"],
+  contradicted: ["cut", "Contradicted"],
+  ignored: ["opening", "Ignored"],
+} as const;
+
+function ComplaintsCard({ data, reviews }: { data: Complaints; reviews?: ReviewsData }) {
+  if (!data.themes.length) return null;
+  const sources = [
+    reviews?.app &&
+      `App Store ${reviews.app.rating?.toFixed(1) ?? "–"}★ from ${compact(reviews.app.ratings)}`,
+    reviews?.bbb && `${compact(reviews.bbb.complaints)} BBB complaints`,
+  ].filter(Boolean);
+  return (
+    <Card
+      className="complaints"
+      title="Complaints vs ads"
+      meta={`${data.sample} critical reviews${sources.length ? ` · ${sources.join(" · ")}` : ""}`}
+    >
+      <ul>
+        {data.themes.map((t) => {
+          const [cls, label] = STATUS[t.status];
+          return (
+            <li key={t.name}>
+              <div className="head">
+                <b>{t.name}</b>
+                <span className="faint">{t.mentions} mentions</span>
+                <span className={`badge ${cls}`}>{label}</span>
+              </div>
+              <q>{t.quote}</q>
+              {t.ad && (
+                <p className="adline">
+                  <b>{t.ad.channel} ad:</b> {t.ad.text}
+                </p>
+              )}
+              {t.status !== "addressed" && t.note && (
+                <p className="steal">
+                  <Lightbulb size={13} /> {t.note}
+                </p>
+              )}
+            </li>
+          );
+        })}
+      </ul>
     </Card>
   );
 }

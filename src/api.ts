@@ -4,6 +4,7 @@ import type {
   Channel,
   ChannelData,
   CompareEvent,
+  Complaints,
   HookPatterns,
   Summary,
   Translations,
@@ -62,14 +63,16 @@ export type Load<T> =
 export type BrandState = { [K in Channel]: Load<ChannelData[K]> } & {
   summary: Load<Summary> | null;
   hooks: Load<HookPatterns> | null;
+  complaints: Load<Complaints> | null;
 };
 
-const CHANNELS: Channel[] = ["meta", "google", "podcasts", "ugc", "trends", "traffic"];
+const CHANNELS: Channel[] = ["meta", "google", "podcasts", "ugc", "trends", "traffic", "reviews"];
 const loading = (): BrandState =>
   ({
     ...Object.fromEntries(CHANNELS.map((c) => [c, { status: "loading" }])),
     summary: null,
     hooks: null,
+    complaints: null,
   }) as BrandState;
 const fail = (e: unknown) => ({
   status: "error" as const,
@@ -97,7 +100,11 @@ export function useBrand(brand: Brand, epoch: number) {
       ),
     ).then((rs) => {
       if (rs.every((r) => r.status === "rejected")) return;
-      set({ summary: { status: "loading" }, hooks: { status: "loading" } });
+      set({
+        summary: { status: "loading" },
+        hooks: { status: "loading" },
+        complaints: { status: "loading" },
+      });
       load<Summary>("/api/summary", brand).then(
         (data) => set({ summary: { status: "ok", data } }),
         (e) => set({ summary: fail(e) }),
@@ -105,6 +112,10 @@ export function useBrand(brand: Brand, epoch: number) {
       load<HookPatterns>("/api/hooks", brand).then(
         (data) => set({ hooks: { status: "ok", data } }),
         (e) => set({ hooks: fail(e) }),
+      );
+      load<Complaints>("/api/complaints", brand).then(
+        (data) => set({ complaints: { status: "ok", data } }),
+        (e) => set({ complaints: fail(e) }),
       );
     });
     return () => {

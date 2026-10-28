@@ -22,6 +22,7 @@ const CHANNEL_LABEL: Record<Channel, string> = {
   ugc: "creators",
   trends: "search interest",
   traffic: "site traffic",
+  reviews: "reviews",
 };
 
 function Side({

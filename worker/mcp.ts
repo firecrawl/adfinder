@@ -263,6 +263,37 @@ Cached brands are free; a new brand costs Firecrawl credits on the caller's key 
   );
 
   mcp.registerTool(
+    "get_reviews",
+    {
+      title: "Get reviews",
+      description: `A business's most critical App Store reviews and newest BBB complaints (US and Canada), with its App Store rating and BBB complaint counts by type. Deliberately the negative end, so read it as "top complaints", not overall sentiment. Pair it with get_ads to see which complaints the ads answer and which they ignore.`,
+      inputSchema: brandInput,
+      annotations: { readOnlyHint: true, openWorldHint: true },
+    },
+    (b) =>
+      run(async () => {
+        const brand: Brand = {
+          name: b.name.trim(),
+          domain: b.domain.trim().toLowerCase(),
+          country: b.country ?? "",
+        };
+        const d = await look.channel(brand, "reviews");
+        return {
+          brand,
+          app_store: d.app,
+          bbb: d.bbb,
+          reviews: d.items.map((r) => ({
+            source: r.source === "app" ? "App Store" : "BBB",
+            rating: r.rating,
+            type: r.type,
+            date: r.date.slice(0, 10),
+            text: clip((r.title ? `${r.title}: ` : "") + r.text, 500),
+          })),
+        };
+      }),
+  );
+
+  mcp.registerTool(
     "get_meta_ad",
     {
       title: "Get Meta ad details",

@@ -5,6 +5,8 @@ import type {
   ChannelData,
   CompareEvent,
   Comparison,
+  ComplaintTheme,
+  Complaints,
   HookPattern,
   HookPatterns,
   Summary,
@@ -59,6 +61,7 @@ function parseJson(content: string | null) {
 
 const pct = (n: number) => `${Math.round(n * 100)}%`;
 const top = <T>(xs: T[], n: number) => xs.slice(0, n);
+const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1).trimEnd()}…` : s);
 
 // Compact, model-sized views of each channel: the raw responses are far too big to send whole.
 export const digests: { [K in Channel]: (d: ChannelData[K]) => unknown } = {
@@ -148,6 +151,19 @@ export const digests: { [K in Channel]: (d: ChannelData[K]) => unknown } = {
         },
   trends: (d) => ({ searchInterestByMonth: d.points.slice(-24) }),
   traffic: (d) => (d.points.length ? { visitsByMonth: d.points } : "Website traffic unavailable."),
+  reviews: (d) =>
+    !d.items.length
+      ? "No App Store or BBB reviews found."
+      : {
+          note: "The most critical reviews and newest complaints, not overall sentiment",
+          appStore: d.app && { rating: d.app.rating, ratings: d.app.ratings },
+          bbb: d.bbb && {
+            complaints: d.bbb.complaints,
+            byType: d.bbb.byType,
+            reviewAverage: d.bbb.reviewAverage,
+          },
+          sample: top(d.items, 12).map((r) => r.text.slice(0, 200)),
+        },
 };
 
 const INSIGHT =
@@ -193,7 +209,7 @@ const RESEARCH_TOOL = {
         brand: { type: "string", enum: ["a", "b"] },
         channel: {
           type: "string",
-          enum: ["meta", "google", "podcasts", "ugc", "trends", "traffic"],
+          enum: ["meta", "google", "podcasts", "ugc", "trends", "traffic", "reviews"],
         },
       },
       required: ["brand", "channel"],
@@ -327,4 +343,71 @@ ${JSON.stringify(list)}`;
       }),
     ),
   };
+}
+
+// Groups complaints into themes and checks each against the ad copy. Mention counts and the ad text come
+// from the indexes the model returns, so neither can be invented.
+export async function complaintsVsAds(
+  env: GlmEnv,
+  brand: Brand,
+  data: Partial<ChannelData>,
+): Promise<Complaints> {
+  const reviews = (data.reviews?.items ?? []).slice(0, 80);
+  if (reviews.length < 5) return { themes: [], sample: reviews.length, model: "" };
+  const ads = [
+    ...(data.meta?.ads ?? []).flatMap((a) => {
+      const text = [a.hook, a.oneLine].filter(Boolean).join(" | ");
+      return text ? [{ text, channel: "Meta" as const }] : [];
+    }),
+    ...(data.podcasts?.reads ?? []).slice(0, 30).map((r) => ({
+      text: r.summary.replace(/\s+/g, " "),
+      channel: "Podcasts" as const,
+    })),
+  ];
+  const seen = new Set<string>();
+  const uniqueAds = ads.filter((a) => !seen.has(a.text) && !!seen.add(a.text)).slice(0, 60);
+  const prompt = `Below are the most critical customer reviews and complaints about ${brand.name}, then the copy of its ads (Meta ads and podcast ad reads).
+
+Group the complaints into 3-6 themes, biggest first. For each theme decide how the ads treat it:
+- "addressed": an ad speaks to it directly (e.g. a quality complaint answered by an ad about better ingredients)
+- "contradicted": an ad promises the opposite of what reviewers report
+- "ignored": no ad touches it
+Be strict: a generic discount doesn't address a complaint. Ads may be in other languages.
+
+Return JSON only: {"themes": [{"name": string (2-4 words), "description": string (one sentence, max 18 words), "reviews": number[] (indexes of the reviews in this theme), "quote": number (index of the clearest review), "status": "addressed"|"ignored"|"contradicted", "ad": number|null (index of the ad that addresses or contradicts it), "note": string (one sentence, max 20 words: for ignored themes, the ad a competitor could run)}]}
+
+# Reviews
+${reviews.map((r, i) => `${i}: ${(r.title ? `${r.title}: ` : "") + r.text.slice(0, 300).replace(/\s+/g, " ")}`).join("\n")}
+
+# Ads
+${uniqueAds.length ? uniqueAds.map((a, i) => `${i} (${a.channel}): ${a.text.slice(0, 220)}`).join("\n") : "No ad copy available."}`;
+  const { message, model } = await chat(env, [{ role: "user", content: prompt }], { json: true });
+  const raw: {
+    name: string;
+    description: string;
+    reviews: number[];
+    quote: number;
+    status: ComplaintTheme["status"];
+    ad: number | null;
+    note: string;
+  }[] = parseJson(message.content).themes ?? [];
+  const themes: ComplaintTheme[] = raw.flatMap((t) => {
+    const members = [...new Set(t.reviews ?? [])].filter((i) => reviews[i]);
+    if (!members.length) return [];
+    const quote = reviews[members.includes(t.quote) ? t.quote : members[0]!]!;
+    const ad = t.ad != null && t.status !== "ignored" ? uniqueAds[t.ad] : undefined;
+    return [
+      {
+        name: t.name,
+        description: t.description,
+        mentions: members.length,
+        quote: clip((quote.title ? `${quote.title}: ` : "") + quote.text, 220),
+        status: ad ? t.status : "ignored",
+        ad: ad ? { text: clip(ad.text, 220), channel: ad.channel } : null,
+        note: t.note,
+      },
+    ];
+  });
+  themes.sort((a, b) => b.mentions - a.mentions);
+  return { themes, sample: reviews.length, model };
 }

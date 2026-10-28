@@ -2504,3 +2504,63 @@ button.row:hover {
   color: var(--muted);
   font-size: 15px;
 }
+
+.complaints ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.complaints li {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+  display: grid;
+  gap: 6px;
+}
+.complaints li:first-child {
+  padding-top: 0;
+}
+.complaints li:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+.complaints .head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.complaints .head b {
+  font-weight: 600;
+}
+.complaints .head .faint {
+  font-size: 13px;
+}
+.complaints .head .badge {
+  margin-left: auto;
+}
+.complaints q {
+  color: var(--text-2);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.complaints .adline,
+.complaints .steal {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+.complaints .adline b {
+  font-weight: 600;
+  color: var(--text-2);
+}
+.complaints .steal {
+  color: var(--fire);
+}
+.complaints .steal svg {
+  vertical-align: -2px;
+}
+.badge.opening {
+  background: var(--fire-soft);
+  color: var(--fire);
+  box-shadow: none;
+}

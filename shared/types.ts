@@ -1,7 +1,7 @@
 // country: ISO alpha-2, or "" for worldwide.
 export type Brand = { name: string; domain: string; country?: string };
 
-export type Channel = "google" | "meta" | "podcasts" | "ugc" | "trends" | "traffic";
+export type Channel = "google" | "meta" | "podcasts" | "ugc" | "trends" | "traffic" | "reviews";
 
 export type Verdict = "winner" | "cut" | null;
 
@@ -127,6 +127,29 @@ export type Point = { month: string; value: number };
 export type TrendsData = { points: Point[] };
 export type TrafficData = { points: Point[] };
 
+// The most critical App Store reviews and the newest BBB complaints, so deliberately the negative end.
+export type Review = {
+  source: "app" | "bbb";
+  rating: number | null;
+  title: string | null;
+  text: string;
+  date: string;
+  type: string | null;
+};
+export type ReviewsData = {
+  app: { name: string; rating: number | null; ratings: number; url: string } | null;
+  bbb: {
+    name: string;
+    url: string;
+    grade: string | null;
+    complaints: number;
+    byType: { label: string; count: number }[];
+    reviewAverage: number | null;
+    reviews: number;
+  } | null;
+  items: Review[];
+};
+
 export type ChannelData = {
   google: GoogleData;
   meta: MetaData;
@@ -134,6 +157,7 @@ export type ChannelData = {
   ugc: UgcData;
   trends: TrendsData;
   traffic: TrafficData;
+  reviews: ReviewsData;
 };
 
 export type Insight = { title: string; detail: string; channel: string };
@@ -159,6 +183,18 @@ export type HookPattern = {
 export type HookPatterns = { patterns: HookPattern[]; model: string };
 // Post id to the English hook and caption, for posts not already in English.
 export type Translations = { posts: Record<string, { hook: string; caption: string }> };
+
+export type ComplaintTheme = {
+  name: string;
+  description: string;
+  mentions: number;
+  quote: string;
+  status: "addressed" | "ignored" | "contradicted";
+  // The ad line that answers or contradicts it.
+  ad: { text: string; channel: "Meta" | "Podcasts" } | null;
+  note: string;
+};
+export type Complaints = { themes: ComplaintTheme[]; sample: number; model: string };
 
 export type Comparison = {
   headline: string;

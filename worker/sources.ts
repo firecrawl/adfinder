@@ -8,6 +8,8 @@ import type {
   MetaAdDetail,
   MetaData,
   PodcastData,
+  Review,
+  ReviewsData,
   Point,
   Share,
   TrafficData,
@@ -489,6 +491,126 @@ async function traffic(alex: Alexandria, brand: Brand): Promise<TrafficData> {
   return { points };
 }
 
+async function appReviews(alex: Alexandria, brand: Brand) {
+  const country = (brand.country || "us").toLowerCase();
+  const found = await alex("apps-apple-com", "apps/search", { term: brand.name, country, limit: 5 });
+  const app = (found.apps ?? []).find(
+    (a: any) => sameBrand(brand, a.name) || sameBrand(brand, a.developer?.name ?? ""),
+  );
+  if (!app) return null;
+  const pages = await Promise.allSettled(
+    [0, 10, 20].map((offset) =>
+      alex("apps-apple-com", "apps/reviews", {
+        app_id: app.app_id,
+        country,
+        sort: "most_critical",
+        limit: 10,
+        offset,
+      }),
+    ),
+  );
+  const items: Review[] = pages.flatMap((p) =>
+    p.status === "fulfilled"
+      ? (p.value.reviews ?? []).map((r: any) => ({
+          source: "app" as const,
+          rating: r.rating ?? null,
+          title: r.title ?? null,
+          text: String(r.body ?? ""),
+          date: String(r.date ?? ""),
+          type: null,
+        }))
+      : [],
+  );
+  return {
+    app: {
+      name: String(app.name),
+      rating: app.rating?.average ?? null,
+      ratings: app.rating?.count ?? 0,
+      url: String(app.url),
+    },
+    items,
+  };
+}
+
+const BBB = "bbb-business-profiles-ratings-complaint";
+const typeLabel = (slug: string) =>
+  ({
+    productissues: "Product",
+    serviceorrepair: "Service",
+    delivery: "Delivery",
+    billingissues: "Billing",
+    salesadvertising: "Sales & advertising",
+    customerservice: "Customer service",
+    order: "Order",
+  })[slug] ?? slug;
+
+// BBB covers only the US and Canada.
+async function bbbReviews(alex: Alexandria, brand: Brand) {
+  if (brand.country && brand.country !== "US" && brand.country !== "CA") return null;
+  const country = brand.country === "CA" ? "ca" : "us";
+  const found = await alex(BBB, "businesses/search", { query: brand.name, country });
+  const hit = (found.results ?? []).find((r: any) => sameBrand(brand, r.name));
+  if (!hit) return null;
+  const id = { bbb_id: hit.bbb_id, business_id: hit.business_id, country };
+  const [first, reviews] = await Promise.all([
+    alex(BBB, "businesses/complaints", id),
+    alex(BBB, "businesses/reviews", id).catch(() => null),
+  ]);
+  const types: { slug: string; count: number }[] = first.filters?.type ?? [];
+  // Paging repeats the first page, so the top complaint types are read one filter at a time instead.
+  const more = await Promise.allSettled(
+    types
+      .slice(0, 3)
+      .map((t) => alex(BBB, "businesses/complaints", { ...id, complaint_type: t.slug })),
+  );
+  const seen = new Set<string>();
+  const complaints = [first, ...more.flatMap((m) => (m.status === "fulfilled" ? [m.value] : []))]
+    .flatMap((page) => page.complaints ?? [])
+    .filter((c: any) => !seen.has(c.id) && !!seen.add(c.id));
+  const items: Review[] = [
+    ...complaints.map((c: any) => ({
+      source: "bbb" as const,
+      rating: null,
+      title: null,
+      text: String(c.text ?? ""),
+      date: String(c.date ?? ""),
+      type: c.type ?? null,
+    })),
+    ...(reviews?.reviews ?? []).map((r: any) => ({
+      source: "bbb" as const,
+      rating: r.star_rating ?? null,
+      title: null,
+      text: String(r.text ?? ""),
+      date: String(r.date ?? ""),
+      type: null,
+    })),
+  ];
+  return {
+    bbb: {
+      name: String(hit.name),
+      url: String(hit.profile_url),
+      grade: hit.rating ?? null,
+      complaints: first.complaints_summary?.total ?? 0,
+      byType: types.map((t) => ({ label: typeLabel(t.slug), count: t.count })),
+      reviewAverage: reviews?.reviews_summary?.average_star_rating ?? null,
+      reviews: reviews?.reviews_summary?.total ?? 0,
+    },
+    items,
+  };
+}
+
+async function reviews(alex: Alexandria, brand: Brand): Promise<ReviewsData> {
+  const [app, bbb] = await Promise.allSettled([appReviews(alex, brand), bbbReviews(alex, brand)]);
+  const a = app.status === "fulfilled" ? app.value : null;
+  const b = bbb.status === "fulfilled" ? bbb.value : null;
+  if (!a && !b && app.status === "rejected") throw app.reason;
+  return {
+    app: a?.app ?? null,
+    bbb: b?.bbb ?? null,
+    items: [...(a?.items ?? []), ...(b?.items ?? [])].filter((r) => r.text.trim()),
+  };
+}
+
 export const CHANNELS: {
   [K in Channel]: (alex: Alexandria, brand: Brand) => Promise<ChannelData[K]>;
 } = {
@@ -498,4 +620,5 @@ export const CHANNELS: {
   ugc,
   trends,
   traffic,
+  reviews,
 };
