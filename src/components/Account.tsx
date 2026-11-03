@@ -46,7 +46,10 @@ export function AccountButton({ onOpen }: { onOpen: (v: Visit) => void }) {
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
       >
-        <span>{compact(me.remainingCredits)} credits</span>
+        <span>
+          {compact(me.remainingCredits)}
+          <span className="wide-only"> credits</span>
+        </span>
         <span className="avatar">{team.slice(0, 1).toUpperCase()}</span>
         <ChevronDown size={14} />
       </button>
