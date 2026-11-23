@@ -8,7 +8,7 @@ Status key: `[ ]` todo, `[~]` in progress, `[x]` done.
 - End-to-end in Agent Browser at 390px and 1440px (CLAUDE.md: few tests, mostly end-to-end). Unit tests only for logic a browser can't reach, such as cache-policy selection
 - Cache changes are checked on the KV store itself: `wrangler kv key list --binding CACHE --prefix <prefix>`
 - Before/after numbers come from the analytics in Phase 0
-- Roll back a bad deploy with `wrangler rollback`. D1 migrations (Phase 6) don't roll back, so make them additive only
+- Roll back a bad deploy with `wrangler rollback`. D1 migrations (Phase 7) don't roll back, so make them additive only
 
 ---
 
@@ -27,7 +27,7 @@ Anyone can spend the site's language-model key today.
   - doubles: milliseconds, Firecrawl credits
   - Credits come from `data.creditsCost` on each Firecrawl response, added up by a `Meter` in `worker/alexandria.ts`
   - Query it with the Analytics Engine SQL API, e.g. `SELECT blob2 AS channel, avg(double1) AS ms, sum(double2) AS credits FROM adfinder_events WHERE blob3 = 'miss' GROUP BY channel`
-- [x] **Terms and Privacy page** at `/terms` (`src/pages/TermsPage.tsx`), linked from the footer and the sign-in dialog. It binds visitors to the provider terms (Similarweb's in particular) and says what's stored. Update it in Phase 6 when emails are stored
+- [x] **Terms and Privacy page** at `/terms` (`src/pages/TermsPage.tsx`), linked from the footer and the sign-in dialog. It binds visitors to the provider terms (Similarweb's in particular) and says what's stored. Update it in Phase 7 when emails are stored
 - [ ] **Ask Firecrawl** (it decides Phase 1's design):
   1. Can data fetched with visitor A's key be shown to visitor B, through the site and through `/mcp`?
   2. Can analyses built from Particle or Similarweb data (summary, compare) be cached and shared?
@@ -131,11 +131,32 @@ From screenshots of the live site at 390px wide. This comes before the report, s
 
 ---
 
-## Phase 4: The report
+## Phase 4: A homepage that shows what it does
+
+Today the home page is a wordmark, one tagline, a search box and five "Try" chips. A first-time visitor can't see what they'd get before searching, or that most of it is free to browse. Turn it into a landing page, with the search box still first on the screen.
+
+- [ ] **Hero:** the search box stays at the top. Sharpen the tagline and add one line on what's free (the featured brands) and what needs a Firecrawl sign-in
+- [ ] **Feature sections, each shown with real data** from a featured brand's shared cache (never podcasts or traffic, which can't be shown to anonymous visitors):
+  - Every ad on Meta and Google, with how long each has run
+  - Creator posts (UGC), search trends and reviews
+  - The AI summary, hook patterns, and complaints matched against ads
+  - Compare two businesses
+  - The MCP server and `llms.txt`, for using it from an agent
+- [ ] **Powered by Alexandria:** the providers behind each channel, linking to the Docs page. This is the showcase for Firecrawl, so make it visible, not a footer line
+- [ ] **Featured brands as cards** (logo, ad counts, one line from the summary) instead of bare chips, so they show there's data behind them. Fall back to the chips when the cache is cold
+- [ ] **Recently viewed** stays, below the hero
+- [ ] **Meta tags and share image** for `/`: title, description and an `og:image` of the page (Phase 5b covers per-report images)
+- [ ] Check at 390px and 1440px, in both themes, and keep the first paint fast: the feature sections load cached data after the hero renders
+
+**Done when:** a visitor who has never heard of Ad Finder can tell from the home page, without searching, what it shows, where the data comes from, and what's free.
+
+---
+
+## Phase 5: The report
 
 A page built to share, print and save as PDF, saying where the brand is heading and what to improve. Built from analyses that already exist: `summarize`, `hookPatterns` and `complaintsVsAds`.
 
-### 4a. Report page and print
+### 5a. Report page and print
 Route `/report?q=<name>&d=<domain>`, opened from a "Report" button on the brand page.
 
 Sections:
@@ -157,27 +178,27 @@ Print:
 - [ ] A4/Letter, page breaks between sections, light theme forced, a "Save as PDF" button (`window.print()`)
 - [ ] Load images eagerly in the report: `loading="lazy"` (e.g. `PodcastsTab.tsx` 97) can print as blanks
 
-### 4b. Share images and server-side meta tags
+### 5b. Share images and server-side meta tags
 - [ ] Run the Worker in front of `/` and `/report` (`run_worker_first` in `wrangler.jsonc` today covers only `/api/*`, `/mcp` and `/llms.txt`). Rewrite `og:title`, `og:description` and `og:image` with HTMLRewriter over `env.ASSETS`
 - [ ] `/og/report.png?d=…` rendered with satori and resvg-wasm, with bundled fonts and cached in KV or the edge cache. Check the CPU limits on the Workers plan first
-- [ ] Use the `branding` provider (from Phase 5, pulled forward) for a sharp logo and the brand's colours. Logos come from Google's favicon service today, which is too low-res
+- [ ] Use the `branding` provider (from Phase 6, pulled forward) for a sharp logo and the brand's colours. Logos come from Google's favicon service today, which is too low-res
 - [ ] With no cached summary yet, fall back to `/og.png`
 
-### 4c. My brand vs competitors (opt-in)
+### 5c. My brand vs competitors (opt-in)
 - [ ] Enter your brand and up to 3 rivals, get a gap report: where they spend and you don't, and hooks they run that you don't
 - [ ] It's 3 extra cold searches plus model calls, so show the credit estimate first. The 3 competitors from `Summary.competitors` are guessed by the model, so let the visitor confirm or edit them
 
-### 4d. MCP
+### 5d. MCP
 - [ ] A `get_report` tool that returns the channel data plus whatever analyses are already cached, and says which are missing. MCP never calls the model
 
-### Deferred to after Phase 6
+### Deferred to after Phase 7
 "Channels they dropped" and "changed since last time" need history, which only exists once snapshots are stored.
 
 **Done when:** a featured brand's report prints cleanly to PDF, and a shared link shows that brand's scorecard as its preview.
 
 ---
 
-## Phase 5: More channels from Alexandria
+## Phase 6: More channels from Alexandria
 
 All of these are in the catalogue and unused. Before choosing each one's cache policy, read its terms on the Third-Party Data Terms page (firecrawl.dev/terms/third-party-data). Each new channel adds cold-search time and credits, so re-measure against Phase 2's targets, or load them only on their own tab.
 
@@ -196,7 +217,7 @@ All of these are in the catalogue and unused. Before choosing each one's cache p
 
 ---
 
-## Phase 6: Accounts, following and alerts
+## Phase 7: Accounts, following and alerts
 
 - [ ] **Sign-in:** keep Firecrawl sign-in for searching (each sign-in is a Firecrawl signup, and visitors pay for their own searches). Add Google sign-in for these saved features only
 - [ ] **Decide who pays for alert runs.** Visitors' keys live only in their cookie today. Either store their keys encrypted with explicit consent, or run alerts on a house key with a cap on followed brands
@@ -205,11 +226,11 @@ All of these are in the catalogue and unused. Before choosing each one's cache p
 - [ ] **Email:** pick a provider (Resend or Postmark). Every email needs an unsubscribe link
 - [ ] **Privacy:** delete-my-account removes the user, their follows and their stored key. Update the Privacy page from Phase 0
 - [ ] **Boards / swipe file:** save ads from any channel into named boards, share a board by link. Meta media links expire after about 4 days, so store thumbnails (R2) for saved ads
-- [ ] **Saved reports:** a saved report regenerates when opened, with a "changed since last time" section (the item deferred from Phase 4)
+- [ ] **Saved reports:** a saved report regenerates when opened, with a "changed since last time" section (the item deferred from Phase 5)
 
 ---
 
-## Phase 7: Showcase extras
+## Phase 8: Showcase extras
 
 - [ ] **"How this was built" panel** on each section: the Alexandria provider and capability, the credits used (from Phase 0's analytics), and a copyable `alexandria_library_read` / SDK snippet
 - [ ] **Landing pages:** scrape each ad's destination URL with Firecrawl (screenshot and offer), and track when the offer changes
