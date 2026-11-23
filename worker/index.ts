@@ -335,17 +335,18 @@ const FEATURED_TTL = 4 * DAY;
 // Past this age a hit is still served, and refreshed in the background.
 const STALE_AFTER = 2 * DAY * 1000;
 
-// A result with lists, all of them empty: likely a brand the provider doesn't cover yet, so it's
+// A result whose lists and maps are all empty: likely a brand the provider doesn't cover yet, so it's
 // checked again sooner.
 const isEmpty = (value: unknown) => {
-  const lists = Object.values(value ?? {}).filter(Array.isArray);
-  return lists.length > 0 && lists.every((l) => !l.length);
+  const parts = Object.values(value ?? {}).filter((v) => typeof v === "object" && v !== null);
+  return parts.length > 0 && parts.every((v) => !Object.keys(v).length);
 };
 
-// Ad Library media URLs are signed and expire after about four days, which the shared TTL stays under.
+// Featured brands come first: an empty result expiring before the cron would lock anonymous visitors
+// out. Ad Library media URLs are signed and expire after about four days, which the TTLs stay under.
 function ttlOf(job: Job, value: unknown) {
-  if (isEmpty(value)) return EMPTY_TTL;
   if (job.kind !== "ad" && featured(job.brand)) return FEATURED_TTL;
+  if (isEmpty(value)) return EMPTY_TTL;
   return SHARED_TTL;
 }
 
@@ -363,6 +364,9 @@ type Ctx = {
   refresh?: boolean;
   // Present on requests, for refreshing a stale hit after the response.
   waitUntil?: (p: Promise<unknown>) => void;
+  // An analysis being refreshed waits for its stale inputs to refresh first, or it would be rebuilt
+  // from old data and then look fresh for another two days.
+  refreshStale?: boolean;
 };
 const ctxOf = (c: C): Ctx => ({
   env: c.env,
@@ -370,18 +374,24 @@ const ctxOf = (c: C): Ctx => ({
   waitUntil: (p) => c.executionCtx.waitUntil(p),
 });
 
-async function run(env: Env, job: Job, key: string, meter: Meter): Promise<unknown> {
+async function run(
+  env: Env,
+  job: Job,
+  key: string,
+  meter: Meter,
+  refresh: boolean,
+): Promise<unknown> {
   if (job.kind === "channel") return CHANNELS[job.ch](alexandriaFor(key, meter), job.brand);
   if (job.kind === "ad") return metaAdDetail(alexandriaFor(key, meter), job.id);
-  const data = await everything({ env, key: async () => key }, job.brand);
+  const data = await everything({ env, key: async () => key, refreshStale: refresh }, job.brand);
   return ANALYSES[job.name][1](env, job.brand, data);
 }
 
-async function compute(env: Env, job: Job, key: string): Promise<unknown> {
+async function compute(env: Env, job: Job, key: string, refresh = false): Promise<unknown> {
   const started = Date.now();
   const meter = { credits: 0 };
   try {
-    const value = await run(env, job, key, meter);
+    const value = await run(env, job, key, meter, refresh);
     track(env, eventOf(job), "miss", started, meter);
     return value;
   } catch (e) {
@@ -463,10 +473,17 @@ async function research<T>(ctx: Ctx, job: Job): Promise<T> {
     );
     if (hit) {
       track(ctx.env, eventOf(job), "hit", started);
+      if (!isStale(metadata)) return hit as T;
+      if (ctx.refreshStale) {
+        const key = await ctx.key();
+        const out = key
+          ? ((await researcher(ctx.env, cacheKey).run(job, key, true)) as Outcome)
+          : null;
+        return (out && "value" in out ? out.value : hit) as T;
+      }
       // Refreshed on the house key: the viewer's would spend their credits on data they've already seen.
       const seed = ctx.env.SEED_FIRECRAWL_API_KEY;
-      if (ctx.waitUntil && seed && isStale(metadata))
-        ctx.waitUntil(researcher(ctx.env, cacheKey).run(job, seed, true));
+      if (ctx.waitUntil && seed) ctx.waitUntil(researcher(ctx.env, cacheKey).run(job, seed, true));
       return hit as T;
     }
   }
@@ -511,7 +528,7 @@ export class Research extends DurableObject<Env> {
         job.kind === "analysis"
           ? { ...this.env, admit: () => (admitted ??= allowModelRun(this.env, key)) }
           : this.env;
-      const value = await compute(env, job, key);
+      const value = await compute(env, job, key, refresh);
       await save(this.env, job, value);
       return { value };
     } catch (e) {

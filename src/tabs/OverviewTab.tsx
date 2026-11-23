@@ -9,7 +9,7 @@ import type {
   ReviewsData,
 } from "../../shared/types";
 import type { BrandState, Load } from "../api";
-import { Accordion, Card, Loaded, SignInPrompt, Stat } from "../components/ui";
+import { Accordion, Card, Loaded, ParticleCredit, SignInPrompt, Stat } from "../components/ui";
 import { Timeline } from "../components/Timeline";
 import { compact, logo } from "../format";
 
@@ -78,10 +78,10 @@ export function OverviewTab({
             locked("meta")
               ? LOCKED
               : !data.meta?.advertiser
-              ? "none found"
-              : data.meta.source === "library"
-                ? "active"
-                : `spend ${data.meta.advertiser.spend ?? "n/a"}`
+                ? "none found"
+                : data.meta.source === "library"
+                  ? "active"
+                  : `spend ${data.meta.advertiser.spend ?? "n/a"}`
           }
         />
         <Stat
@@ -120,6 +120,7 @@ export function OverviewTab({
       <Card title="Activity timeline">
         <Timeline data={data} />
       </Card>
+      {data.podcasts?.sponsor && <ParticleCredit />}
       <div style={{ height: 22 }} />
       <Loaded load={state.summary} skeleton={<SummarySkeleton />}>
         {(s) => (
@@ -204,9 +205,7 @@ export function OverviewTab({
 function Patterns({ data }: { data: HookPatterns }) {
   if (!data.patterns.length) return null;
   return (
-    <Card
-      title="Hook patterns"
-    >
+    <Card title="Hook patterns">
       <table className="patterns">
         <thead>
           <tr>
