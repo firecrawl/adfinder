@@ -409,8 +409,14 @@ p {
 .footer {
   margin-top: auto;
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
+  align-items: center;
+  gap: 12px 28px;
   padding: 40px 16px 32px;
+}
+.footer a[href="/terms"] {
+  font-size: 14px;
 }
 .footer a {
   display: inline-flex;
@@ -1530,6 +1536,9 @@ button.row:hover {
   color: var(--muted);
   line-height: 1.5;
 }
+.modal .fine {
+  font-size: 12px;
+}
 .modal input {
   height: 44px;
   border: 1px solid var(--line-strong);
@@ -2574,4 +2583,19 @@ button.row:hover {
   background: var(--fire-soft);
   color: var(--fire);
   box-shadow: none;
+}
+
+.terms .prose-sm {
+  max-width: 680px;
+}
+.terms h2 {
+  margin: 28px 0 6px;
+  font-size: 17px;
+  font-weight: 650;
+}
+.terms ul {
+  margin: 10px 0 10px 20px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text-2);
 }

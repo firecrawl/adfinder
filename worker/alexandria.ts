@@ -17,12 +17,16 @@ export type Alexandria = ((
 };
 
 const FIRECRAWL = "https://api.firecrawl.dev/v2";
+
+// Adds up the Firecrawl credits a job spends, for the analytics events.
+export type Meter = { credits: number };
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 async function post(
   key: string,
   body: unknown,
   pick: (j: any) => { data?: any; retryAfter?: number; error?: string },
+  meter?: Meter,
   endpoint = "scrape",
 ) {
   for (let attempt = 0; attempt < 4; attempt++) {
@@ -39,6 +43,10 @@ async function post(
       await sleep((Number(String(j.error).match(/retry after (\d+)s/)?.[1] ?? 10) + 1) * 1000);
       continue;
     }
+    if (meter)
+      meter.credits += Number(
+        j.data?.creditsCost ?? j.data?.metadata?.creditsUsed ?? j.creditsUsed ?? 0,
+      );
     if (!r.ok || j.success === false)
       throw new ApiError(j.error || `Firecrawl error ${r.status}`, 502);
     const out = pick(j);
@@ -49,15 +57,20 @@ async function post(
   throw new ApiError("Firecrawl is still rate-limiting this account. Try again in a minute.", 429);
 }
 
-export function alexandriaFor(key: string): Alexandria {
+export function alexandriaFor(key: string, meter?: Meter): Alexandria {
   const call = (provider: string, capability: string, options: Record<string, unknown>) =>
-    post(key, { alexandria: [{ provider, capability, options }] }, (j) => {
-      const item = j.data?.alexandria?.[0];
-      if (item?.data) return { data: item.data };
-      if (item?.error?.code === "provider_rate_limited")
-        return { retryAfter: item.error.retryAfterSeconds ?? 2 };
-      return { error: item?.error?.message };
-    });
+    post(
+      key,
+      { alexandria: [{ provider, capability, options }] },
+      (j) => {
+        const item = j.data?.alexandria?.[0];
+        if (item?.data) return { data: item.data };
+        if (item?.error?.code === "provider_rate_limited")
+          return { retryAfter: item.error.retryAfterSeconds ?? 2 };
+        return { error: item?.error?.message };
+      },
+      meter,
+    );
   const html = (url: string) =>
     post(
       key,
@@ -77,13 +90,19 @@ export function alexandriaFor(key: string): Alexandria {
         data: j.data?.rawHtml,
         error: "The page returned no data",
       }),
+      meter,
     );
   return Object.assign(call, { html });
 }
 
 export type WebResult = { url: string; title?: string; description?: string };
-export const webSearch = (key: string, query: string, limit = 5): Promise<WebResult[]> =>
-  post(key, { query, limit }, (j) => ({ data: j.data?.web ?? [] }), "search");
+export const webSearch = (
+  key: string,
+  query: string,
+  meter?: Meter,
+  limit = 5,
+): Promise<WebResult[]> =>
+  post(key, { query, limit }, (j) => ({ data: j.data?.web ?? [] }), meter, "search");
 
 export async function credits(key: string) {
   const r = await fetch(`${FIRECRAWL}/team/credit-usage`, {

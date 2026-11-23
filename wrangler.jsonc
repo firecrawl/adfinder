@@ -10,8 +10,20 @@
   "kv_namespaces": [{ "binding": "CACHE", "id": "e1d94ae3b8f6498bbdd9655a6effb383" }],
   "routes": [{ "pattern": "adfinder.pandor.cc", "custom_domain": true }],
   // One Research object per cache key runs each lookup once, even across page refreshes.
-  "durable_objects": { "bindings": [{ "name": "RESEARCH", "class_name": "Research" }] },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Research"] }],
+  "durable_objects": {
+    "bindings": [
+      { "name": "RESEARCH", "class_name": "Research" },
+      { "name": "BUDGET", "class_name": "Budget" },
+    ],
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["Research"] },
+    { "tag": "v2", "new_sqlite_classes": ["Budget"] },
+  ],
+  // Language-model runs per visitor (keyed by a hash of their Firecrawl key). Cache hits don't count.
+  "ratelimits": [{ "name": "MODEL_LIMIT", "namespace_id": "1001", "simple": { "limit": 10, "period": 60 } }],
+  "vars": { "MODEL_DAILY_LIMIT": "500" },
+  "analytics_engine_datasets": [{ "binding": "EVENTS", "dataset": "adfinder_events" }],
   // Refreshes the featured brands before Meta's signed image links (about four days) expire.
   "triggers": { "crons": ["0 6 */3 * *"] },
   "observability": { "enabled": true }
