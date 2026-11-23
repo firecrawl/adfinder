@@ -53,7 +53,7 @@ Still to do:
 
 ## Phase 1: Cache within provider terms [~]
 
-Today every result is cached in KV for 30 days (`ttlOf`) and shared between all visitors.
+Before this phase, every result was cached in KV for 30 days and shared between all visitors. Built in PR #2.
 
 | Provider | Channel | What its terms say | Policy |
 |-|-|-|-|
@@ -69,24 +69,24 @@ Today every result is cached in KV for 30 days (`ttlOf`) and shared between all 
   - `everything()` only uses `SHARED_CHANNELS`, so the seeding cron and every shared analysis (summary, hooks, translate, complaints) leave them out. The summary and complaints prompts no longer mention podcasts or traffic
   - Compare's research tool only offers the shared channels
   - The client starts the analyses once the shared channels have loaded, without waiting on the live ones
-- [x] **Podcasts:** fetched live on each view, with the browser's `memo` as the only cache. Anonymous visitors get "sign in to load". Particle's attribution ("Podcast data from Particle, via Firecrawl Alexandria.") is shown in `PodcastsTab` and in the MCP output
+- [x] **Podcasts:** fetched live on each view, with the browser's `memo` as the only cache. Anonymous visitors get "sign in to load". Particle's attribution ("Podcast data from Particle, via Firecrawl Alexandria.", `ParticleCredit` in `src/components/ui.tsx`) is shown wherever podcast data is: the Podcasts tab, Overview, Compare and the MCP output
   - Particle's exact attribution wording isn't in the Alexandria catalogue; confirm it with Firecrawl alongside Phase 0's questions
   - If Firecrawl allows per-user caching, key it on an HMAC of the API key: the cookie can't be hashed because `seal` uses a random IV
-- [x] **TTLs:** shared 3 days, empty results 1 day, featured brands 4 days (the `0 6 */3 * *` cron's longest gap is 3 days)
+- [x] **TTLs:** shared 3 days, empty results 1 day, featured brands 4 days even when empty (the `0 6 */3 * *` cron's longest gap is 3 days). A result counts as empty when all its lists and maps are empty
 - [x] **Every cache key family bumped:** `ch:v3`, `ad:v2`, `res:v2`, `sum:v4`, `hooks:v2`, `tr:v2`, `gap:v2`, `cmp:v2`. `res` and `cmp` now use the 3-day TTL too
-- [x] **Stale-while-revalidate:** `save` writes `fetchedAt` as KV metadata. A hit older than 2 days is served, then refreshed in the background through the `Research` Durable Object (so simultaneous visitors share one refresh) on `SEED_FIRECRAWL_API_KEY`. Analysis refreshes pass the model limits on the seed key. `res` and `cmp` don't refresh; they just expire
+- [x] **Stale-while-revalidate:** `save` writes `fetchedAt` as KV metadata. A hit older than 2 days is served, then refreshed in the background through the `Research` Durable Object (so simultaneous visitors share one refresh) on `SEED_FIRECRAWL_API_KEY`. Analysis refreshes pass the model limits on the seed key, and wait for their stale channels to refresh first. `res` and `cmp` don't refresh; they just expire
 
 Checked locally:
 - Anonymous podcasts and traffic get 401; signed in, they load and nothing is written to KV
 - A shared channel is written as `ch:v3:…` with `fetchedAt` and the right TTL (4 days for a featured brand, 1 day for an empty result)
-- A backdated entry is served at once and refreshed in the background
-- Podcasts tab at 390px (sign-in prompt) and 1440px (data plus attribution), no console errors
+- A backdated entry is served at once and refreshed in the background; a backdated analysis refreshes its backdated channel first
+- Podcasts tab at 390px (sign-in prompt) and 1440px (data plus attribution), Overview at 1440px (attribution), no console errors
 
 To do after deploying:
 - Delete the old podcast and traffic keys. The featured brands' `ch:v2:podcasts:*` and `ch:v2:traffic:*` were written with no expiry, so they'd stay in KV forever: `wrangler kv key list --binding CACHE --prefix ch:v2:podcasts` (and `ch:v2:traffic`, `ch:v1:`), then `wrangler kv bulk delete`
 - The new key versions start empty, so featured brands need signing in until the next cron run (up to 3 days). Deploy the evening before a cron day (the 1st, 4th, 7th… at 06:00 UTC), or add a way to trigger the seed by hand
 
-**Done when:** `wrangler kv key list` shows no traffic or podcast keys, no shared entry is older than 3 days, and podcasts still load for a signed-in visitor.
+**Done when:** `wrangler kv key list` shows no traffic or podcast keys, no shared entry is older than 3 days (4 for featured brands), and podcasts still load for a signed-in visitor.
 
 ---
 
@@ -95,7 +95,7 @@ To do after deploying:
 A cached brand loads in about 0.1–0.4s per channel. A brand nobody has searched yet is slow. Measure a cold search before and after with Phase 0's analytics, and write the numbers here.
 
 - [ ] **Start the analyses without waiting for every channel.** Two changes:
-  - Client: `useBrand` (`src/api.ts` ~91-120) waits for all channels before asking for analyses; ask straight away
+  - Client: `useBrand` (`src/api.ts`) waits for every shared channel before asking for analyses (Phase 1 stopped it waiting on podcasts and traffic); ask straight away
   - Server: give `everything()` a deadline (about 25s) and analyse what has arrived
   - Cache partial analyses for a short time only, or key them by the set of channels they used, so a partial summary isn't kept for 3 days
 - [ ] **Meta Ad Library fallback:** try 2 scrolls instead of 4 (`worker/alexandria.ts` `html`), and cap retries. 4 retries × 90s can take about 6 minutes
