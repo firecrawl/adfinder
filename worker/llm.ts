@@ -13,7 +13,13 @@ import type {
   Translations,
 } from "../shared/types";
 
-export type GlmEnv = { GLM_API_KEY?: string; GLM_BASE_URL?: string; GLM_MODEL?: string };
+export type GlmEnv = {
+  GLM_API_KEY?: string;
+  GLM_BASE_URL?: string;
+  GLM_MODEL?: string;
+  // Admits a run against the model limits, before its first model call.
+  admit?: () => Promise<void>;
+};
 type Message = {
   role: "system" | "user" | "assistant" | "tool";
   content: string | null;
@@ -31,6 +37,7 @@ async function chat(
   opts: { tools?: unknown[]; json?: boolean; timeout?: number } = {},
 ) {
   if (!env.GLM_API_KEY) throw new Error("GLM_API_KEY is not set");
+  await env.admit?.();
   const r = await fetch(`${env.GLM_BASE_URL || "https://openrouter.ai/api/v1"}/chat/completions`, {
     method: "POST",
     headers: { authorization: `Bearer ${env.GLM_API_KEY}`, "content-type": "application/json" },

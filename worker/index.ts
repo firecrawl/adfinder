@@ -458,9 +458,14 @@ export class Research extends DurableObject<Env> {
     if (hit) return { value: hit };
     console.log(`research ${keyOf(job)}`);
     try {
-      // Checked here rather than per request, so visitors who join a run already in progress aren't charged.
-      if (job.kind === "analysis") await allowModelRun(this.env, key);
-      const value = await compute(this.env, job, key);
+      // Charged here rather than per request, so visitors who join a run already in progress aren't, and
+      // only on the first model call, since some analyses return early without one.
+      let admitted: Promise<void> | undefined;
+      const env =
+        job.kind === "analysis"
+          ? { ...this.env, admit: () => (admitted ??= allowModelRun(this.env, key)) }
+          : this.env;
+      const value = await compute(env, job, key);
       await save(this.env, job, value);
       return { value };
     } catch (e) {
