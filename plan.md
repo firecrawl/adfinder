@@ -83,11 +83,13 @@ Checked locally:
 - Podcasts tab at 390px (sign-in prompt) and 1440px (data plus attribution), Overview at 1440px (attribution), no console errors
 
 Shipped in PR #2 and deployed on 23 Nov 2026 (version `4e69654d`):
-- Deleted all 73 podcast and traffic keys from production KV; `wrangler kv key list` now shows none. The other old-version keys are kept so a `wrangler rollback` still has a cache
+- Deleted all 73 podcast and traffic keys from production KV
 - On the live site, anonymous podcasts and traffic get 401
+- Later the same day, deleted the remaining 447 old-version keys (`ch:v2`, `sum:v3`, `hooks:v1` and the rest), so KV holds nothing older than this deploy. A `wrangler rollback` would now start with an empty cache
 
 Still to do:
-- The featured brands are cold (the new key versions start empty) until the cron runs on 25 Nov at 06:00 UTC, or until someone signed in opens each one
+- The featured brands are cold until the cron runs on 25 Nov at 06:00 UTC, or until someone signed in with the seed key opens each one and its analyses
+- Check that podcasts load on the live site for a signed-in visitor
 
 **Done when:** `wrangler kv key list` shows no traffic or podcast keys, no shared entry is older than 3 days (4 for featured brands), and podcasts still load for a signed-in visitor.
 
