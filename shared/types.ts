@@ -191,7 +191,7 @@ export type ComplaintTheme = {
   quote: string;
   status: "addressed" | "ignored" | "contradicted";
   // The ad line that answers or contradicts it.
-  ad: { text: string; channel: "Meta" | "Podcasts" } | null;
+  ad: { text: string; channel: "Meta" } | null;
   note: string;
 };
 export type Complaints = { themes: ComplaintTheme[]; sample: number; model: string };

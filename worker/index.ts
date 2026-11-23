@@ -1,10 +1,11 @@
 // adfinder's Worker. It keeps the viewer's Firecrawl key in an encrypted HttpOnly cookie (page scripts never
-// see it), runs the Alexandria calls for each channel, and caches every result in KV so a brand that has
-// been searched once loads instantly and for free.
+// see it), runs the Alexandria calls for each channel, and caches the results each provider's terms allow
+// in KV, so a brand that has been searched once loads quickly and mostly for free.
 import { DurableObject } from "cloudflare:workers";
 import { Hono, type Context } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { streamSSE } from "hono/streaming";
+import { CACHE_POLICY, SHARED_CHANNELS } from "../shared/channels";
 import { llmsTxt } from "../shared/docs";
 import { FEATURED } from "../shared/featured";
 import type { Brand, Channel, ChannelData } from "../shared/types";
@@ -37,7 +38,8 @@ type C = Context<{ Bindings: Env }>;
 const app = new Hono<{ Bindings: Env }>();
 
 const COOKIE = "adf";
-const MONTH = 60 * 60 * 24 * 30;
+const DAY = 60 * 60 * 24;
+const MONTH = DAY * 30;
 
 // ---------- session cookie (AES-GCM, key derived from COOKIE_SECRET) ----------
 const enc = new TextEncoder();
@@ -245,7 +247,7 @@ async function officialSite(
 
 app.post("/api/resolve", async (c) => {
   const { name } = brandFrom(await c.req.json());
-  const cacheKey = `res:v1:${squash(name)}`;
+  const cacheKey = `res:v2:${squash(name)}`;
   const event = { kind: "resolve", name: "resolve", brand: squash(name) };
   const started = Date.now();
   const hit = await c.env.CACHE.get(cacheKey, "json");
@@ -261,7 +263,9 @@ app.post("/api/resolve", async (c) => {
     throw e;
   });
   track(c.env, event, "miss", started, meter);
-  await c.env.CACHE.put(cacheKey, JSON.stringify(found), { expirationTtl: MONTH });
+  await c.env.CACHE.put(cacheKey, JSON.stringify(found), {
+    expirationTtl: found.domain ? SHARED_TTL : EMPTY_TTL,
+  });
   return c.json(found);
 });
 
@@ -277,11 +281,11 @@ app.get("/api/suggest", async (c) => {
 });
 
 // ---------- channels ----------
-const slug = (b: Brand, perCountry = true) =>
+const slug = (b: Brand) =>
   (b.domain || b.name)
     .toLowerCase()
     .replace(/^www\./, "")
-    .replace(/[^a-z0-9.]/g, "") + (perCountry && b.country ? `@${b.country}` : "");
+    .replace(/[^a-z0-9.]/g, "") + (b.country ? `@${b.country}` : "");
 function brandFrom(body: any): Brand {
   const name = String(body?.name ?? "")
     .trim()
@@ -309,30 +313,40 @@ type Job =
 type Outcome = { value: unknown } | { error: string; status: number };
 
 const ANALYSES = {
-  summary: ["sum:v3", summarize],
-  hooks: ["hooks:v1", hookPatterns],
-  translate: ["tr:v1", translateHooks],
-  complaints: ["gap:v1", complaintsVsAds],
+  summary: ["sum:v4", summarize],
+  hooks: ["hooks:v2", hookPatterns],
+  translate: ["tr:v2", translateHooks],
+  complaints: ["gap:v2", complaintsVsAds],
 } as const;
-
-// Particle and Similarweb have no country filter, so every country view shares one copy.
-const GLOBAL: Channel[] = ["podcasts", "traffic"];
 
 const keyOf = (job: Job) =>
   job.kind === "channel"
-    ? `ch:v2:${job.ch}:${slug(job.brand, !GLOBAL.includes(job.ch))}`
+    ? `ch:v3:${job.ch}:${slug(job.brand)}`
     : job.kind === "analysis"
       ? `${ANALYSES[job.name][0]}:${slug(job.brand)}`
-      : `ad:v1:${job.id}`;
+      : `ad:v2:${job.id}`;
 
 const featured = (b: Brand) => !b.country && FEATURED.some((f) => f.domain === b.domain);
 
-// 0 keeps the entry until it is overwritten. Ad Library media URLs are signed and expire after about
-// four days, so those results are kept for three.
+const SHARED_TTL = 3 * DAY;
+const EMPTY_TTL = DAY;
+// Featured brands outlive the cron's gap (at most 3 days, from "0 6 */3 * *") so they never go cold.
+const FEATURED_TTL = 4 * DAY;
+// Past this age a hit is still served, and refreshed in the background.
+const STALE_AFTER = 2 * DAY * 1000;
+
+// A result with lists, all of them empty: likely a brand the provider doesn't cover yet, so it's
+// checked again sooner.
+const isEmpty = (value: unknown) => {
+  const lists = Object.values(value ?? {}).filter(Array.isArray);
+  return lists.length > 0 && lists.every((l) => !l.length);
+};
+
+// Ad Library media URLs are signed and expire after about four days, which the shared TTL stays under.
 function ttlOf(job: Job, value: unknown) {
-  if (job.kind !== "ad" && featured(job.brand)) return 0;
-  if ((value as { source?: string } | null)?.source === "library") return 3 * 24 * 60 * 60;
-  return MONTH;
+  if (isEmpty(value)) return EMPTY_TTL;
+  if (job.kind !== "ad" && featured(job.brand)) return FEATURED_TTL;
+  return SHARED_TTL;
 }
 
 const SIGN_IN = {
@@ -347,8 +361,14 @@ type Ctx = {
   key: () => Promise<string | null>;
   // The cron job re-runs everything here, without the cache or the Durable Object.
   refresh?: boolean;
+  // Present on requests, for refreshing a stale hit after the response.
+  waitUntil?: (p: Promise<unknown>) => void;
 };
-const ctxOf = (c: C): Ctx => ({ env: c.env, key: () => apiKey(c) });
+const ctxOf = (c: C): Ctx => ({
+  env: c.env,
+  key: () => apiKey(c),
+  waitUntil: (p) => c.executionCtx.waitUntil(p),
+});
 
 async function run(env: Env, job: Job, key: string, meter: Meter): Promise<unknown> {
   if (job.kind === "channel") return CHANNELS[job.ch](alexandriaFor(key, meter), job.brand);
@@ -415,18 +435,38 @@ export class Budget extends DurableObject<Env> {
   }
 }
 
+type Meta = { fetchedAt: number };
+const isStale = (meta: Meta | null) => !meta || Date.now() - meta.fetchedAt > STALE_AFTER;
+
 async function save(env: Env, job: Job, value: unknown) {
-  const seconds = ttlOf(job, value);
-  await env.CACHE.put(keyOf(job), JSON.stringify(value), seconds ? { expirationTtl: seconds } : {});
+  await env.CACHE.put(keyOf(job), JSON.stringify(value), {
+    expirationTtl: ttlOf(job, value),
+    metadata: { fetchedAt: Date.now() } satisfies Meta,
+  });
 }
+
+const live = (job: Job) => job.kind === "channel" && CACHE_POLICY[job.ch] === "none";
 
 async function research<T>(ctx: Ctx, job: Job): Promise<T> {
   const cacheKey = keyOf(job);
+  // Fetched with the viewer's own key and never stored, so no one else is ever shown it.
+  if (live(job)) {
+    const key = await ctx.key();
+    if (!key) throw new ApiError(SIGN_IN[job.kind], 401);
+    return (await compute(ctx.env, job, key)) as T;
+  }
   if (!ctx.refresh) {
     const started = Date.now();
-    const hit = await ctx.env.CACHE.get(cacheKey, "json");
+    const { value: hit, metadata } = await ctx.env.CACHE.getWithMetadata<unknown, Meta>(
+      cacheKey,
+      "json",
+    );
     if (hit) {
       track(ctx.env, eventOf(job), "hit", started);
+      // Refreshed on the house key: the viewer's would spend their credits on data they've already seen.
+      const seed = ctx.env.SEED_FIRECRAWL_API_KEY;
+      if (ctx.waitUntil && seed && isStale(metadata))
+        ctx.waitUntil(researcher(ctx.env, cacheKey).run(job, seed, true));
       return hit as T;
     }
   }
@@ -437,25 +477,31 @@ async function research<T>(ctx: Ctx, job: Job): Promise<T> {
     await save(ctx.env, job, value);
     return value as T;
   }
-  const stub = ctx.env.RESEARCH.get(ctx.env.RESEARCH.idFromName(cacheKey));
-  const out = (await stub.run(job, key)) as Outcome;
+  const out = (await researcher(ctx.env, cacheKey).run(job, key)) as Outcome;
   if ("error" in out) throw new ApiError(out.error, out.status);
   return out.value as T;
 }
 
+const researcher = (env: Env, cacheKey: string) =>
+  env.RESEARCH.get(env.RESEARCH.idFromName(cacheKey));
+
 export class Research extends DurableObject<Env> {
   private pending: Promise<Outcome> | undefined;
 
-  run(job: Job, key: string): Promise<Outcome> {
-    this.pending ??= this.work(job, key).finally(() => {
+  // `refresh` re-runs a stale entry. Visitors who see it stale at the same moment share one refresh.
+  run(job: Job, key: string, refresh = false): Promise<Outcome> {
+    this.pending ??= this.work(job, key, refresh).finally(() => {
       this.pending = undefined;
     });
     return this.pending;
   }
 
-  private async work(job: Job, key: string): Promise<Outcome> {
-    const hit = await this.env.CACHE.get(keyOf(job), "json");
-    if (hit) return { value: hit };
+  private async work(job: Job, key: string, refresh: boolean): Promise<Outcome> {
+    const { value: hit, metadata } = await this.env.CACHE.getWithMetadata<unknown, Meta>(
+      keyOf(job),
+      "json",
+    );
+    if (hit && !(refresh && isStale(metadata))) return { value: hit };
     console.log(`research ${keyOf(job)}`);
     try {
       // Charged here rather than per request, so visitors who join a run already in progress aren't, and
@@ -511,7 +557,11 @@ app.all("/mcp", (c) => {
   )
     return c.redirect("/docs");
   const bearer = c.req.header("authorization")?.match(/^Bearer\s+(fc-[A-Za-z0-9]+)$/)?.[1] ?? null;
-  const ctx: Ctx = { env: c.env, key: async () => bearer };
+  const ctx: Ctx = {
+    env: c.env,
+    key: async () => bearer,
+    waitUntil: (p) => c.executionCtx.waitUntil(p),
+  };
   return handleMcp(c.req.raw, {
     suggest,
     channel: (brand, ch) => channel(ctx, brand, ch),
@@ -520,12 +570,11 @@ app.all("/mcp", (c) => {
 });
 
 // ---------- language model ----------
-const ALL = Object.keys(CHANNELS) as Channel[];
-
+// Analyses are cached and shared, so they're built only from channels that may be shared.
 async function everything(ctx: Ctx, brand: Brand): Promise<Partial<ChannelData>> {
-  const settled = await Promise.allSettled(ALL.map((ch) => channel(ctx, brand, ch)));
+  const settled = await Promise.allSettled(SHARED_CHANNELS.map((ch) => channel(ctx, brand, ch)));
   const data = Object.fromEntries(
-    settled.flatMap((r, i) => (r.status === "fulfilled" ? [[ALL[i], r.value]] : [])),
+    settled.flatMap((r, i) => (r.status === "fulfilled" ? [[SHARED_CHANNELS[i], r.value]] : [])),
   );
   if (!Object.keys(data).length) throw (settled[0] as PromiseRejectedResult).reason;
   return data;
@@ -546,7 +595,7 @@ app.post("/api/compare", async (c) => {
   const body = await c.req.json();
   const a = brandFrom(body.a);
   const b = brandFrom(body.b);
-  const key = `cmp:v1:${slug(a)}|${slug(b)}`;
+  const key = `cmp:v2:${slug(a)}|${slug(b)}`;
   const ctx = ctxOf(c);
   const event = { kind: "analysis", name: "compare", brand: `${slug(a)}|${slug(b)}` };
   const started = Date.now();
@@ -572,7 +621,7 @@ app.post("/api/compare", async (c) => {
       if (!hit) {
         track(c.env, event, "miss", started);
         c.executionCtx.waitUntil(
-          c.env.CACHE.put(key, JSON.stringify(data), { expirationTtl: MONTH }),
+          c.env.CACHE.put(key, JSON.stringify(data), { expirationTtl: SHARED_TTL }),
         );
       }
       await send({ type: "result", data });

@@ -1,4 +1,5 @@
 import { Calculator, ExternalLink, Mic } from "lucide-react";
+import { PARTICLE_ATTRIBUTION } from "../../shared/channels";
 import { podcastBand, podcastSpend } from "../../shared/spend";
 import { useState } from "react";
 import type { PodcastData, PodcastRead } from "../../shared/types";
@@ -132,6 +133,9 @@ export function PodcastsTab({
                 </div>
               </Card>
             </div>
+            <p className="faint" style={{ marginTop: 18 }}>
+              {PARTICLE_ATTRIBUTION}
+            </p>
             {open && (
               <Sheet
                 title={

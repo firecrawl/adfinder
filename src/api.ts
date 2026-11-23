@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { CACHE_POLICY, CHANNEL_LIST } from "../shared/channels";
 import type {
   Brand,
   Channel,
@@ -66,10 +67,9 @@ export type BrandState = { [K in Channel]: Load<ChannelData[K]> } & {
   complaints: Load<Complaints> | null;
 };
 
-const CHANNELS: Channel[] = ["meta", "google", "podcasts", "ugc", "trends", "traffic", "reviews"];
 const loading = (): BrandState =>
   ({
-    ...Object.fromEntries(CHANNELS.map((c) => [c, { status: "loading" }])),
+    ...Object.fromEntries(CHANNEL_LIST.map((c) => [c, { status: "loading" }])),
     summary: null,
     hooks: null,
     complaints: null,
@@ -88,36 +88,35 @@ export function useBrand(brand: Brand, epoch: number) {
     const set = (patch: Partial<BrandState>) =>
       live &&
       setStore((s) => ({ id, state: { ...(s?.id === id ? s.state : loading()), ...patch } }));
-    void Promise.allSettled(
-      CHANNELS.map((ch) =>
-        load(`/api/channel/${ch}`, brand).then(
-          (data) => set({ [ch]: { status: "ok", data } }),
-          (e) => {
-            set({ [ch]: fail(e) });
-            throw e;
-          },
-        ),
+    const loaded = CHANNEL_LIST.map((ch) =>
+      load(`/api/channel/${ch}`, brand).then(
+        (data) => (set({ [ch]: { status: "ok", data } }), true),
+        (e) => (set({ [ch]: fail(e) }), false),
       ),
-    ).then((rs) => {
-      if (rs.every((r) => r.status === "rejected")) return;
-      set({
-        summary: { status: "loading" },
-        hooks: { status: "loading" },
-        complaints: { status: "loading" },
-      });
-      load<Summary>("/api/summary", brand).then(
-        (data) => set({ summary: { status: "ok", data } }),
-        (e) => set({ summary: fail(e) }),
-      );
-      load<HookPatterns>("/api/hooks", brand).then(
-        (data) => set({ hooks: { status: "ok", data } }),
-        (e) => set({ hooks: fail(e) }),
-      );
-      load<Complaints>("/api/complaints", brand).then(
-        (data) => set({ complaints: { status: "ok", data } }),
-        (e) => set({ complaints: fail(e) }),
-      );
-    });
+    );
+    // Analyses only use the shared channels, so they don't wait on the live ones.
+    void Promise.all(loaded.filter((_, i) => CACHE_POLICY[CHANNEL_LIST[i]!] === "shared")).then(
+      (oks) => {
+        if (!oks.some(Boolean)) return;
+        set({
+          summary: { status: "loading" },
+          hooks: { status: "loading" },
+          complaints: { status: "loading" },
+        });
+        load<Summary>("/api/summary", brand).then(
+          (data) => set({ summary: { status: "ok", data } }),
+          (e) => set({ summary: fail(e) }),
+        );
+        load<HookPatterns>("/api/hooks", brand).then(
+          (data) => set({ hooks: { status: "ok", data } }),
+          (e) => set({ hooks: fail(e) }),
+        );
+        load<Complaints>("/api/complaints", brand).then(
+          (data) => set({ complaints: { status: "ok", data } }),
+          (e) => set({ complaints: fail(e) }),
+        );
+      },
+    );
     return () => {
       live = false;
     };

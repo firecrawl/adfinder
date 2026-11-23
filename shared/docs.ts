@@ -142,7 +142,7 @@ MCP endpoint: ${ENDPOINT} (Streamable HTTP, stateless, JSON responses)
 
 Authentication is the user's own Firecrawl API key as a bearer token: \`Authorization: Bearer fc-...\`. Keys come from ${KEYS_URL}. If you are an agent setting this up, ask the user for their key, or use FIRECRAWL_API_KEY from their environment if it is set. Never print the key back.
 
-Without a key, only brands already cached work, including ${FREE_BRANDS}. Firecrawl's keyless mode does not cover the ad data providers, so a brand nobody has looked up needs a key.
+Without a key, only brands already cached work, including ${FREE_BRANDS}, and not their podcasts. Firecrawl's keyless mode does not cover the ad data providers, so a brand nobody has looked up needs a key.
 
 ${CLIENTS.map((c) => `### ${c.name}\n\n${c.where}:\n\n\`\`\`${c.lang}\n${c.code}\n\`\`\``).join("\n\n")}
 
@@ -156,7 +156,7 @@ Ad status: "long runner" ran 90+ days (advertisers keep ads that pay off), "cut 
 
 ## Cost
 
-Cached brands are free and instant. A brand nobody has looked up costs roughly 100-200 Firecrawl credits across the four platforms, once, and can take a minute or two; after that it is cached for everyone for up to 30 days (Meta Ad Library results for 3 days).
+Cached brands are free and instant. A brand nobody has looked up costs roughly 100-200 Firecrawl credits across the four platforms, once, and can take a minute or two; after that it is cached for everyone for up to 3 days. Podcasts are the exception: Particle's terms don't allow reusing its data, so podcasts are fetched live on the caller's key every time and never cached.
 
 ## Example requests
 

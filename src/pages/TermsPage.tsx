@@ -61,8 +61,10 @@ export function TermsPage() {
           it.
         </p>
         <p>
-          <b>Research results</b> are cached on Cloudflare so a brand loads faster the next time,
-          for as long as each provider's terms allow.
+          <b>Research results</b> are cached on Cloudflare for up to 3 days (4 for the featured
+          brands), so a brand loads faster the next time. Podcast data (from Particle) and website
+          traffic (from Similarweb) are never stored: they're fetched with your own key each time
+          you view them, and only your browser keeps them, until you leave the page.
         </p>
         <p>
           <b>Usage events</b>: which channel or analysis ran, for which brand, whether it came from
