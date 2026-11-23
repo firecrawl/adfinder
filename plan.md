@@ -82,9 +82,12 @@ Checked locally:
 - A backdated entry is served at once and refreshed in the background; a backdated analysis refreshes its backdated channel first
 - Podcasts tab at 390px (sign-in prompt) and 1440px (data plus attribution), Overview at 1440px (attribution), no console errors
 
-To do after deploying:
-- Delete the old podcast and traffic keys. The featured brands' `ch:v2:podcasts:*` and `ch:v2:traffic:*` were written with no expiry, so they'd stay in KV forever: `wrangler kv key list --binding CACHE --prefix ch:v2:podcasts` (and `ch:v2:traffic`, `ch:v1:`), then `wrangler kv bulk delete`
-- The new key versions start empty, so featured brands need signing in until the next cron run (up to 3 days). Deploy the evening before a cron day (the 1st, 4th, 7th… at 06:00 UTC), or add a way to trigger the seed by hand
+Shipped in PR #2 and deployed on 23 Nov 2026 (version `4e69654d`):
+- Deleted all 73 podcast and traffic keys from production KV; `wrangler kv key list` now shows none. The other old-version keys are kept so a `wrangler rollback` still has a cache
+- On the live site, anonymous podcasts and traffic get 401
+
+Still to do:
+- The featured brands are cold (the new key versions start empty) until the cron runs on 25 Nov at 06:00 UTC, or until someone signed in opens each one
 
 **Done when:** `wrangler kv key list` shows no traffic or podcast keys, no shared entry is older than 3 days (4 for featured brands), and podcasts still load for a signed-in visitor.
 
