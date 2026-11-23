@@ -28,7 +28,7 @@ Anyone can spend the site's language-model key today.
   - Credits come from `data.creditsCost` on each Firecrawl response, added up by a `Meter` in `worker/alexandria.ts`
   - Query it with the Analytics Engine SQL API, e.g. `SELECT blob2 AS channel, avg(double1) AS ms, sum(double2) AS credits FROM adfinder_events WHERE blob3 = 'miss' GROUP BY channel`
 - [x] **Terms and Privacy page** at `/terms` (`src/pages/TermsPage.tsx`), linked from the footer and the sign-in dialog. It binds visitors to the provider terms (Similarweb's in particular) and says what's stored. Update it in Phase 7 when emails are stored
-- [ ] **Ask Firecrawl** (it decides Phase 1's design):
+- [ ] **Ask Firecrawl** (Phase 1 shipped assuming "no" to both; a "yes" to question 1 would allow per-user podcast caching):
   1. Can data fetched with visitor A's key be shown to visitor B, through the site and through `/mcp`?
   2. Can analyses built from Particle or Similarweb data (summary, compare) be cached and shared?
 
@@ -215,7 +215,7 @@ All of these are in the catalogue and unused. Before choosing each one's cache p
 - [ ] **Per new channel:**
   - Code: a type in `shared/types.ts`, a fetcher in `worker/sources.ts`, a digest in `worker/llm.ts`, a tab or overview section
   - Interfaces: the MCP `platform` enum and the docs in `shared/docs.ts`
-  - The cache-policy table in Phase 1
+  - Its entry in `CACHE_POLICY` (`shared/channels.ts`) and a row in the cache-policy table in Phase 1
 
 ---
 
