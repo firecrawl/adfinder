@@ -246,14 +246,21 @@ async function officialSite(
 app.post("/api/resolve", async (c) => {
   const { name } = brandFrom(await c.req.json());
   const cacheKey = `res:v1:${squash(name)}`;
+  const event = { kind: "resolve", name: "resolve", brand: squash(name) };
+  const started = Date.now();
   const hit = await c.env.CACHE.get(cacheKey, "json");
-  if (hit) return c.json(hit);
+  if (hit) {
+    track(c.env, event, "hit", started);
+    return c.json(hit);
+  }
   const key = await apiKey(c);
   if (!key) throw new ApiError(SIGN_IN.channel, 401);
-  const started = Date.now();
   const meter = { credits: 0 };
-  const found = await officialSite(key, name, meter);
-  track(c.env, { kind: "resolve", name: "resolve", brand: squash(name) }, "miss", started, meter);
+  const found = await officialSite(key, name, meter).catch((e: unknown) => {
+    track(c.env, event, "error", started, meter);
+    throw e;
+  });
+  track(c.env, event, "miss", started, meter);
   await c.env.CACHE.put(cacheKey, JSON.stringify(found), { expirationTtl: MONTH });
   return c.json(found);
 });
@@ -425,7 +432,6 @@ async function research<T>(ctx: Ctx, job: Job): Promise<T> {
   }
   const key = await ctx.key();
   if (!key) throw new ApiError(SIGN_IN[job.kind], 401);
-  if (job.kind === "analysis" && !ctx.refresh) await allowModelRun(ctx.env, key);
   if (ctx.refresh) {
     const value = await compute(ctx.env, job, key);
     await save(ctx.env, job, value);
@@ -452,6 +458,8 @@ export class Research extends DurableObject<Env> {
     if (hit) return { value: hit };
     console.log(`research ${keyOf(job)}`);
     try {
+      // Checked here rather than per request, so visitors who join a run already in progress aren't charged.
+      if (job.kind === "analysis") await allowModelRun(this.env, key);
       const value = await compute(this.env, job, key);
       await save(this.env, job, value);
       return { value };
