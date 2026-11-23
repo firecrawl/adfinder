@@ -201,6 +201,13 @@ export function SignInModal({ mode, onClose }: { mode: "signin" | "key"; onClose
         <button className="btn ghost" onClick={onClose}>
           Cancel
         </button>
+        <p className="fine">
+          By signing in you agree to Ad Finder's{" "}
+          <a href="/terms" target="_blank">
+            terms
+          </a>
+          .
+        </p>
       </dialog>
     </>
   );

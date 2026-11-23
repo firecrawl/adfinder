@@ -8,7 +8,7 @@ import { streamSSE } from "hono/streaming";
 import { llmsTxt } from "../shared/docs";
 import { FEATURED } from "../shared/featured";
 import type { Brand, Channel, ChannelData } from "../shared/types";
-import { ApiError, alexandriaFor, credits, webSearch } from "./alexandria";
+import { ApiError, alexandriaFor, credits, webSearch, type Meter } from "./alexandria";
 import {
   compare,
   complaintsVsAds,
@@ -24,6 +24,10 @@ import { CHANNELS, metaAdDetail } from "./sources";
 type Env = GlmEnv & {
   CACHE: KVNamespace;
   RESEARCH: DurableObjectNamespace<Research>;
+  BUDGET: DurableObjectNamespace<Budget>;
+  MODEL_LIMIT: RateLimit;
+  MODEL_DAILY_LIMIT?: string;
+  EVENTS?: AnalyticsEngineDataset;
   ASSETS: Fetcher;
   COOKIE_SECRET: string;
   // Only the cron job uses this, to refresh the featured brands; visitors always use their own key.
@@ -223,9 +227,10 @@ const labelOf = (host: string) => squash(host.split(".").slice(-2)[0] ?? "");
 async function officialSite(
   key: string,
   name: string,
+  meter: Meter,
 ): Promise<Suggestion & { description?: string }> {
   const want = squash(name);
-  const results = (await webSearch(key, `${name} official website`)).filter(
+  const results = (await webSearch(key, `${name} official website`, meter)).filter(
     (r) => !NOT_OWN_SITE.test(hostOf(r.url)),
   );
   const byDomain = results.find((r) => {
@@ -241,11 +246,21 @@ async function officialSite(
 app.post("/api/resolve", async (c) => {
   const { name } = brandFrom(await c.req.json());
   const cacheKey = `res:v1:${squash(name)}`;
+  const event = { kind: "resolve", name: "resolve", brand: squash(name) };
+  const started = Date.now();
   const hit = await c.env.CACHE.get(cacheKey, "json");
-  if (hit) return c.json(hit);
+  if (hit) {
+    track(c.env, event, "hit", started);
+    return c.json(hit);
+  }
   const key = await apiKey(c);
   if (!key) throw new ApiError(SIGN_IN.channel, 401);
-  const found = await officialSite(key, name);
+  const meter = { credits: 0 };
+  const found = await officialSite(key, name, meter).catch((e: unknown) => {
+    track(c.env, event, "error", started, meter);
+    throw e;
+  });
+  track(c.env, event, "miss", started, meter);
   await c.env.CACHE.put(cacheKey, JSON.stringify(found), { expirationTtl: MONTH });
   return c.json(found);
 });
@@ -335,11 +350,69 @@ type Ctx = {
 };
 const ctxOf = (c: C): Ctx => ({ env: c.env, key: () => apiKey(c) });
 
-async function compute(env: Env, job: Job, key: string): Promise<unknown> {
-  if (job.kind === "channel") return CHANNELS[job.ch](alexandriaFor(key), job.brand);
-  if (job.kind === "ad") return metaAdDetail(alexandriaFor(key), job.id);
+async function run(env: Env, job: Job, key: string, meter: Meter): Promise<unknown> {
+  if (job.kind === "channel") return CHANNELS[job.ch](alexandriaFor(key, meter), job.brand);
+  if (job.kind === "ad") return metaAdDetail(alexandriaFor(key, meter), job.id);
   const data = await everything({ env, key: async () => key }, job.brand);
   return ANALYSES[job.name][1](env, job.brand, data);
+}
+
+async function compute(env: Env, job: Job, key: string): Promise<unknown> {
+  const started = Date.now();
+  const meter = { credits: 0 };
+  try {
+    const value = await run(env, job, key, meter);
+    track(env, eventOf(job), "miss", started, meter);
+    return value;
+  } catch (e) {
+    track(env, eventOf(job), "error", started, meter);
+    throw e;
+  }
+}
+
+// One Analytics Engine row per lookup: blobs are kind, name, outcome and brand; doubles are milliseconds
+// and Firecrawl credits. Analyses report 0 credits because their channel lookups are counted separately.
+type Event = { kind: string; name: string; brand: string };
+const eventOf = (job: Job): Event =>
+  job.kind === "channel"
+    ? { kind: "channel", name: job.ch, brand: slug(job.brand) }
+    : job.kind === "analysis"
+      ? { kind: "analysis", name: job.name, brand: slug(job.brand) }
+      : { kind: "ad", name: "ad", brand: job.id };
+function track(
+  env: Env,
+  e: Event,
+  outcome: "hit" | "miss" | "error",
+  started: number,
+  meter?: Meter,
+) {
+  env.EVENTS?.writeDataPoint({
+    indexes: [e.name],
+    blobs: [e.kind, e.name, outcome, e.brand],
+    doubles: [Date.now() - started, meter?.credits ?? 0],
+  });
+}
+
+const hashOf = async (s: string) =>
+  b64(new Uint8Array(await crypto.subtle.digest("SHA-256", enc.encode(s)))).slice(0, 22);
+
+// Every language-model run spends the site's own model key, so each visitor gets a per-minute limit
+// and the whole site a daily one. Only runs that call the model count; cached results are free.
+async function allowModelRun(env: Env, key: string) {
+  if (!(await env.MODEL_LIMIT.limit({ key: await hashOf(key) })).success)
+    throw new ApiError("Too many AI requests at once. Try again in a minute.", 429);
+  const today = env.BUDGET.get(env.BUDGET.idFromName(new Date().toISOString().slice(0, 10)));
+  if (!(await today.take(Number(env.MODEL_DAILY_LIMIT ?? 500))))
+    throw new ApiError("Ad Finder has used today's AI budget. Try again tomorrow.", 429);
+}
+
+export class Budget extends DurableObject<Env> {
+  async take(limit: number) {
+    const used = (await this.ctx.storage.get<number>("used")) ?? 0;
+    if (used >= limit) return false;
+    await this.ctx.storage.put("used", used + 1);
+    return true;
+  }
 }
 
 async function save(env: Env, job: Job, value: unknown) {
@@ -350,8 +423,12 @@ async function save(env: Env, job: Job, value: unknown) {
 async function research<T>(ctx: Ctx, job: Job): Promise<T> {
   const cacheKey = keyOf(job);
   if (!ctx.refresh) {
+    const started = Date.now();
     const hit = await ctx.env.CACHE.get(cacheKey, "json");
-    if (hit) return hit as T;
+    if (hit) {
+      track(ctx.env, eventOf(job), "hit", started);
+      return hit as T;
+    }
   }
   const key = await ctx.key();
   if (!key) throw new ApiError(SIGN_IN[job.kind], 401);
@@ -381,7 +458,14 @@ export class Research extends DurableObject<Env> {
     if (hit) return { value: hit };
     console.log(`research ${keyOf(job)}`);
     try {
-      const value = await compute(this.env, job, key);
+      // Charged here rather than per request, so visitors who join a run already in progress aren't, and
+      // only on the first model call, since some analyses return early without one.
+      let admitted: Promise<void> | undefined;
+      const env =
+        job.kind === "analysis"
+          ? { ...this.env, admit: () => (admitted ??= allowModelRun(this.env, key)) }
+          : this.env;
+      const value = await compute(env, job, key);
       await save(this.env, job, value);
       return { value };
     } catch (e) {
@@ -464,10 +548,18 @@ app.post("/api/compare", async (c) => {
   const b = brandFrom(body.b);
   const key = `cmp:v1:${slug(a)}|${slug(b)}`;
   const ctx = ctxOf(c);
+  const event = { kind: "analysis", name: "compare", brand: `${slug(a)}|${slug(b)}` };
+  const started = Date.now();
+  const hit = await c.env.CACHE.get(key, "json");
+  if (hit) track(c.env, event, "hit", started);
+  else {
+    const visitor = await ctx.key();
+    if (!visitor) throw new ApiError(SIGN_IN.analysis, 401);
+    await allowModelRun(c.env, visitor);
+  }
   return streamSSE(c, async (stream) => {
     const send = (e: unknown) => stream.writeSSE({ data: JSON.stringify(e) });
     try {
-      const hit = await c.env.CACHE.get(key, "json");
       const data =
         hit ??
         (await compare(
@@ -477,12 +569,15 @@ app.post("/api/compare", async (c) => {
           async (brand, ch) => digests[ch]((await channel(ctx, brand, ch)) as never),
           (e) => void send(e),
         ));
-      if (!hit)
+      if (!hit) {
+        track(c.env, event, "miss", started);
         c.executionCtx.waitUntil(
           c.env.CACHE.put(key, JSON.stringify(data), { expirationTtl: MONTH }),
         );
+      }
       await send({ type: "result", data });
     } catch (e) {
+      track(c.env, event, "error", started);
       await send({ type: "error", error: (e as Error).message });
     }
   });
