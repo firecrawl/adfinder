@@ -12,6 +12,7 @@ import {
   postCost,
   creatorSpend,
 } from "../shared/spend";
+import { PARTICLE_ATTRIBUTION } from "../shared/channels";
 import { ENDPOINT, KEYS_URL, SITE } from "../shared/docs";
 import type { Brand, Channel, ChannelData, MetaAdDetail, Verdict } from "../shared/types";
 import { ApiError } from "./alexandria";
@@ -106,6 +107,7 @@ function shape(platform: Platform, d: ChannelData[Channel], filter: Filter, limi
   if (platform === "podcasts") {
     const p = d as ChannelData["podcasts"];
     return {
+      attribution: PARTICLE_ATTRIBUTION,
       sponsor: p.sponsor,
       estimated_spend_usd: podcastSpend(p),
       spend_method:
@@ -226,7 +228,7 @@ function server(look: Lookups) {
 - podcasts: sponsored podcast reads with shows, dates, audio and a spend estimate
 - creators: TikTok and Instagram creator posts (paid, organic and the brand's own) by views, with cost estimates
 Status: "long runner" ran 90+ days (advertisers keep ads that pay off), "cut fast" was stopped within about two weeks.
-Cached brands are free; a new brand costs Firecrawl credits on the caller's key and can take a minute or two.`,
+Cached brands are free; a new brand costs Firecrawl credits on the caller's key and can take a minute or two. Podcasts are never cached and always cost credits.`,
       inputSchema: {
         ...brandInput,
         platform: z.enum(Object.keys(PLATFORMS) as [Platform, ...Platform[]]),

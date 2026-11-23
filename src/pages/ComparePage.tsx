@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { creatorSpend, podcastSpend, type Range } from "../../shared/spend";
 import type { Brand, Channel, Comparison } from "../../shared/types";
 import { streamCompare, useBrand, type BrandState, type Load } from "../api";
-import { AdSkeletons, Card, Empty, Loaded } from "../components/ui";
+import { AdSkeletons, Card, Empty, Loaded, ParticleCredit } from "../components/ui";
 import { compact, logo, usdRange } from "../format";
 import { rememberCompare } from "../recent";
 import { useSession } from "../session";
@@ -229,9 +229,7 @@ export function ComparePage({
           </Card>
         </div>
       )}
-      {ready && (
-        <SideBySide a={a} b={b} sa={sa} sb={sb} onOpenBrand={onOpenBrand} />
-      )}
+      {ready && <SideBySide a={a} b={b} sa={sa} sb={sb} onOpenBrand={onOpenBrand} />}
     </main>
   );
 }
@@ -307,6 +305,8 @@ function SideBySide({
           {column(b, sb, "b")}
         </div>
       )}
+      {(view === "numbers" || view === "podcasts") &&
+        [sa, sb].some((s) => ok(s.podcasts)?.sponsor) && <ParticleCredit />}
     </section>
   );
 }

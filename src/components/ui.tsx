@@ -1,5 +1,6 @@
 import { ChevronDown, X } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
+import { PARTICLE_ATTRIBUTION } from "../../shared/channels";
 import type { Share, Verdict } from "../../shared/types";
 import type { Load } from "../api";
 import { pct } from "../format";
@@ -25,6 +26,15 @@ export function Wordmark({ size = "sm", onClick }: { size?: "sm" | "lg"; onClick
     </a>
   ) : (
     <span className={`wordmark ${size}`}>{inner}</span>
+  );
+}
+
+// Particle's terms require the credit wherever its podcast data is shown.
+export function ParticleCredit() {
+  return (
+    <p className="faint" style={{ marginTop: 18 }}>
+      {PARTICLE_ATTRIBUTION}
+    </p>
   );
 }
 

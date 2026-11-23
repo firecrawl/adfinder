@@ -129,7 +129,8 @@ export function DocsPage() {
               firecrawl.dev
             </a>
             . Brands anyone has already looked up are cached, so they're free and instant. A new
-            brand costs about 100–200 credits once, then it's cached for everyone.
+            brand costs about 100–200 credits once, then it's cached for everyone. Podcasts are
+            always fetched live on your key, since Particle's terms don't allow sharing them.
           </p>
           <p>
             No key at all? Cached brands still work, including {FREE_BRANDS}. Firecrawl's keyless

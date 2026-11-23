@@ -1,3 +1,4 @@
+import { SHARED_CHANNELS } from "../shared/channels";
 import { creatorSpend, podcastSpend } from "../shared/spend";
 import type {
   Brand,
@@ -174,7 +175,7 @@ export const digests: { [K in Channel]: (d: ChannelData[K]) => unknown } = {
 };
 
 const INSIGHT =
-  '{"title": string, "detail": string (one sentence, max 20 words, cite one number), "channel": "Meta"|"Google"|"Podcasts"|"UGC"|"Search"}';
+  '{"title": string, "detail": string (one sentence, max 20 words, cite one number), "channel": "Meta"|"Google"|"UGC"|"Search"}';
 
 export async function summarize(
   env: GlmEnv,
@@ -184,14 +185,13 @@ export async function summarize(
   const research = Object.entries(data)
     .map(([k, v]) => `## ${k}\n${JSON.stringify(digests[k as Channel](v as never))}`)
     .join("\n\n");
-  const where = brand.country ? ` in ${brand.country} (podcasts and traffic are global)` : "";
-  const prompt = `You are a performance-marketing strategist. Below is public research on ${brand.name} (${brand.domain})${where}: its Meta and Google ads, podcast sponsorships, creator/UGC posts, search interest and site traffic.
+  const where = brand.country ? ` in ${brand.country}` : "";
+  const prompt = `You are a performance-marketing strategist. Below is public research on ${brand.name} (${brand.domain})${where}: its Meta and Google ads, creator/UGC posts, search interest and customer reviews.
 
 Work out what has worked for them, what hasn't, and what a smaller business could copy. Evidence rules:
 - A Google or Meta ad that has run for months is a winner (advertisers kill losers fast); one stopped within two weeks is a loser.
 - Meta "strength" is Meta's 1-5 delivery indicator.
-- Podcast ad volume rising month after month means it's working for them; a stop means it isn't.
-- Compare spikes in search interest with months of heavy ad, podcast or UGC activity, but call it a correlation, never proof.
+- Compare spikes in search interest with months of heavy ad or UGC activity, but call it a correlation, never proof.
 - Spend figures are estimates; say "an estimated" when you use them.
 - Only use numbers that appear in the research. Skip a channel with no data rather than guessing.
 
@@ -209,14 +209,15 @@ const RESEARCH_TOOL = {
   function: {
     name: "research",
     description:
-      "Look up one marketing channel for one of the two brands. Channels: meta (Meta ads, hooks, personas), google (Google ads and how long they ran), podcasts (podcast sponsorships and ad reads), ugc (creator posts on TikTok and Instagram), trends (search interest by month), traffic (website visits by month).",
+      "Look up one marketing channel for one of the two brands. Channels: meta (Meta ads, hooks, personas), google (Google ads and how long they ran), ugc (creator posts on TikTok and Instagram), trends (search interest by month), reviews (App Store reviews and BBB complaints).",
     parameters: {
       type: "object",
       properties: {
         brand: { type: "string", enum: ["a", "b"] },
         channel: {
           type: "string",
-          enum: ["meta", "google", "podcasts", "ugc", "trends", "traffic", "reviews"],
+          // Comparisons are cached and shared, so podcasts and traffic, which can't be, are left out.
+          enum: SHARED_CHANNELS,
         },
       },
       required: ["brand", "channel"],
@@ -238,7 +239,7 @@ export async function compare(
 Research every channel for both brands (call the tool for several at once), then compare where each spends, which hooks and formats keep running, and who is winning attention.
 Long-running ads are winners; ads stopped within two weeks are losers. Only cite numbers the tool returned. Before each batch of tool calls, write one short sentence saying what you're checking and why.
 When done, reply with JSON only:
-{"headline": string (max 14 words), "winner": "a"|"b"|"tie", "rows": [{"dimension": string, "a": string (max 12 words), "b": string (max 12 words), "edge": "a"|"b"|"tie"}] (5-8 rows: e.g. Meta ads, Google ads, Podcasts, UGC, Hooks, Search interest), "aStrengths": [string] (2-4), "bStrengths": [string] (2-4), "takeaways": [string] (3-4 lessons for a business competing with both)}`,
+{"headline": string (max 14 words), "winner": "a"|"b"|"tie", "rows": [{"dimension": string, "a": string (max 12 words), "b": string (max 12 words), "edge": "a"|"b"|"tie"}] (5-8 rows: e.g. Meta ads, Google ads, UGC, Hooks, Search interest, Reviews), "aStrengths": [string] (2-4), "bStrengths": [string] (2-4), "takeaways": [string] (3-4 lessons for a business competing with both)}`,
     },
     { role: "user", content: `Compare ${a.name} and ${b.name}.` },
   ];
@@ -263,7 +264,7 @@ When done, reply with JSON only:
           const args = JSON.parse(call.function.arguments || "{}");
           const brand = args.brand === "b" ? b : a;
           const channel = args.channel as Channel;
-          if (!(channel in digests)) throw new Error(`Unknown channel ${channel}`);
+          if (!SHARED_CHANNELS.includes(channel)) throw new Error(`Unknown channel ${channel}`);
           emit({ type: "tool", brand: brand.name, channel });
           content = JSON.stringify(await lookup(brand, channel));
         } catch (e) {
@@ -341,7 +342,8 @@ Return JSON only: {"items": [{"i": number, "hook": string, "caption": string}]}
 
 ${JSON.stringify(list)}`;
   const { message } = await chat(env, [{ role: "user", content: prompt }], { json: true });
-  const items: { i: number; hook: string; caption: string }[] = parseJson(message.content).items ?? [];
+  const items: { i: number; hook: string; caption: string }[] =
+    parseJson(message.content).items ?? [];
   return {
     posts: Object.fromEntries(
       items.flatMap((t) => {
@@ -361,19 +363,13 @@ export async function complaintsVsAds(
 ): Promise<Complaints> {
   const reviews = (data.reviews?.items ?? []).slice(0, 80);
   if (reviews.length < 5) return { themes: [], sample: reviews.length, model: "" };
-  const ads = [
-    ...(data.meta?.ads ?? []).flatMap((a) => {
-      const text = [a.hook, a.oneLine].filter(Boolean).join(" | ");
-      return text ? [{ text, channel: "Meta" as const }] : [];
-    }),
-    ...(data.podcasts?.reads ?? []).slice(0, 30).map((r) => ({
-      text: r.summary.replace(/\s+/g, " "),
-      channel: "Podcasts" as const,
-    })),
-  ];
+  const ads = (data.meta?.ads ?? []).flatMap((a) => {
+    const text = [a.hook, a.oneLine].filter(Boolean).join(" | ");
+    return text ? [{ text, channel: "Meta" as const }] : [];
+  });
   const seen = new Set<string>();
   const uniqueAds = ads.filter((a) => !seen.has(a.text) && !!seen.add(a.text)).slice(0, 60);
-  const prompt = `Below are the most critical customer reviews and complaints about ${brand.name}, then the copy of its ads (Meta ads and podcast ad reads).
+  const prompt = `Below are the most critical customer reviews and complaints about ${brand.name}, then the copy of its Meta ads.
 
 Group the complaints into 3-6 themes, biggest first. For each theme decide how the ads treat it:
 - "addressed": an ad speaks to it directly (e.g. a quality complaint answered by an ad about better ingredients)

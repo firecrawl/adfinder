@@ -40,16 +40,20 @@ Checked locally:
 - An anonymous compare or summary of an uncached brand gets 401
 - With the daily budget at 0: the budget's 429 first, then the per-visitor 429 after 10 requests in a minute
 
+Shipped in PR #1 and deployed on 23 Nov 2026 (version `779099f4`). On the live site:
+- `/terms` loads
+- An anonymous compare of an uncached pair gets 401
+- Cached brands still load in about 0.2s
+
 Still to do:
-- Deploy
-- Confirm events arrive in Analytics Engine
-- Get Firecrawl's answers
+- Confirm events arrive in Analytics Engine: run the query above in the Cloudflare dashboard, or with an API token that has Account Analytics read
+- Get Firecrawl's answers to the two questions above
 
 ---
 
-## Phase 1: Cache within provider terms
+## Phase 1: Cache within provider terms [~]
 
-Today every result is cached in KV for 30 days (`ttlOf`) and shared between all visitors.
+Before this phase, every result was cached in KV for 30 days and shared between all visitors. Built in PR #2.
 
 | Provider | Channel | What its terms say | Policy |
 |-|-|-|-|
@@ -58,21 +62,31 @@ Today every result is cached in KV for 30 days (`ttlOf`) and shared between all 
 | Upspring | `meta` | Keep and use for any lawful purpose, no standalone resale | `shared` |
 | Google Ads Transparency, Apple, BBB, Oriane, Firecrawl Trends | `google`, `reviews`, `ugc`, `trends` | General terms only | `shared` |
 
-- [ ] **A cache policy per channel** (`shared`, `per-user`, `none`) next to `CHANNELS`. It should be the single list of channels; `src/api.ts` ~69 currently keeps its own copy
-- [ ] **`none` has its own path:** call `compute` directly, with no KV and no `Research` Durable Object. Otherwise visitor B joins A's in-flight run and gets A's Similarweb data
-- [ ] **Traffic and podcasts in other paths:**
-  - Leave `none` channels out of the featured seeding cron
-  - Leave them out of Compare's research tool, or fetch them live there, never cached
-  - Leave them out of any shared analysis, until Firecrawl answers Phase 0's question 2
-- [ ] **Podcasts:** fetched live on each view, with the browser's in-session memo (`src/api.ts` `memo`) as the only cache. If Firecrawl allows per-user caching, key it on an HMAC of the API key: the cookie can't be hashed because `seal` uses a random IV. Show Particle's attribution in `PodcastsTab` and in the MCP output
-  - Consequence: anonymous visitors no longer see podcasts for featured brands. Show "sign in to load" there
-- [ ] **TTLs:**
-  - Shared: 3 days, and 1 day for empty results
-  - Featured brands: 4 days, or change the cron to daily. A 3-day TTL with the `0 6 */3 * *` cron leaves gaps, and that schedule is irregular at month end
-- [ ] **Every cache key family, explicitly:** `ch`, `ad`, `res`, `sum`, `hooks`, `tr`, `gap` and `cmp`. `cmp:v1` is written with a 30-day TTL outside `ttlOf` (index.ts ~482). Bump every version so old 30-day entries aren't served
-- [ ] **Stale-while-revalidate:** store `fetchedAt` in KV metadata and read it with `getWithMetadata`. Past about 2 days, serve the cached copy and refresh in the background with `SEED_FIRECRAWL_API_KEY`, never the visitor's key (that would spend their credits on data they were already shown). `Ctx` needs `waitUntil` for this
+- [x] **A cache policy per channel**, `CACHE_POLICY` in `shared/channels.ts`, which is now the single list of channels (`CHANNEL_LIST`) for the worker and the client. Only `shared` and `none` exist so far
+  - Not done: `per-user`. Add it only if Firecrawl allows per-user caching (Phase 0, question 1)
+- [x] **`none` has its own path:** `research` calls `compute` directly, with no KV and no `Research` Durable Object
+- [x] **Traffic and podcasts in other paths:**
+  - `everything()` only uses `SHARED_CHANNELS`, so the seeding cron and every shared analysis (summary, hooks, translate, complaints) leave them out. The summary and complaints prompts no longer mention podcasts or traffic
+  - Compare's research tool only offers the shared channels
+  - The client starts the analyses once the shared channels have loaded, without waiting on the live ones
+- [x] **Podcasts:** fetched live on each view, with the browser's `memo` as the only cache. Anonymous visitors get "sign in to load". Particle's attribution ("Podcast data from Particle, via Firecrawl Alexandria.", `ParticleCredit` in `src/components/ui.tsx`) is shown wherever podcast data is: the Podcasts tab, Overview, Compare and the MCP output
+  - Particle's exact attribution wording isn't in the Alexandria catalogue; confirm it with Firecrawl alongside Phase 0's questions
+  - If Firecrawl allows per-user caching, key it on an HMAC of the API key: the cookie can't be hashed because `seal` uses a random IV
+- [x] **TTLs:** shared 3 days, empty results 1 day, featured brands 4 days even when empty (the `0 6 */3 * *` cron's longest gap is 3 days). A result counts as empty when all its lists and maps are empty
+- [x] **Every cache key family bumped:** `ch:v3`, `ad:v2`, `res:v2`, `sum:v4`, `hooks:v2`, `tr:v2`, `gap:v2`, `cmp:v2`. `res` and `cmp` now use the 3-day TTL too
+- [x] **Stale-while-revalidate:** `save` writes `fetchedAt` as KV metadata. A hit older than 2 days is served, then refreshed in the background through the `Research` Durable Object (so simultaneous visitors share one refresh) on `SEED_FIRECRAWL_API_KEY`. Analysis refreshes pass the model limits on the seed key, and wait for their stale channels to refresh first. `res` and `cmp` don't refresh; they just expire
 
-**Done when:** `wrangler kv key list` shows no traffic or podcast keys, no shared entry is older than 3 days, and podcasts still load for a signed-in visitor.
+Checked locally:
+- Anonymous podcasts and traffic get 401; signed in, they load and nothing is written to KV
+- A shared channel is written as `ch:v3:…` with `fetchedAt` and the right TTL (4 days for a featured brand, 1 day for an empty result)
+- A backdated entry is served at once and refreshed in the background; a backdated analysis refreshes its backdated channel first
+- Podcasts tab at 390px (sign-in prompt) and 1440px (data plus attribution), Overview at 1440px (attribution), no console errors
+
+To do after deploying:
+- Delete the old podcast and traffic keys. The featured brands' `ch:v2:podcasts:*` and `ch:v2:traffic:*` were written with no expiry, so they'd stay in KV forever: `wrangler kv key list --binding CACHE --prefix ch:v2:podcasts` (and `ch:v2:traffic`, `ch:v1:`), then `wrangler kv bulk delete`
+- The new key versions start empty, so featured brands need signing in until the next cron run (up to 3 days). Deploy the evening before a cron day (the 1st, 4th, 7th… at 06:00 UTC), or add a way to trigger the seed by hand
+
+**Done when:** `wrangler kv key list` shows no traffic or podcast keys, no shared entry is older than 3 days (4 for featured brands), and podcasts still load for a signed-in visitor.
 
 ---
 
@@ -81,7 +95,7 @@ Today every result is cached in KV for 30 days (`ttlOf`) and shared between all 
 A cached brand loads in about 0.1–0.4s per channel. A brand nobody has searched yet is slow. Measure a cold search before and after with Phase 0's analytics, and write the numbers here.
 
 - [ ] **Start the analyses without waiting for every channel.** Two changes:
-  - Client: `useBrand` (`src/api.ts` ~91-120) waits for all channels before asking for analyses; ask straight away
+  - Client: `useBrand` (`src/api.ts`) waits for every shared channel before asking for analyses (Phase 1 stopped it waiting on podcasts and traffic); ask straight away
   - Server: give `everything()` a deadline (about 25s) and analyse what has arrived
   - Cache partial analyses for a short time only, or key them by the set of channels they used, so a partial summary isn't kept for 3 days
 - [ ] **Meta Ad Library fallback:** try 2 scrolls instead of 4 (`worker/alexandria.ts` `html`), and cap retries. 4 retries × 90s can take about 6 minutes

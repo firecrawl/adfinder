@@ -3,7 +3,16 @@ import { podcastBand, podcastSpend } from "../../shared/spend";
 import { useState } from "react";
 import type { PodcastData, PodcastRead } from "../../shared/types";
 import type { Load } from "../api";
-import { Accordion, Card, Empty, Facts, Loaded, Sheet, Stat } from "../components/ui";
+import {
+  Accordion,
+  Card,
+  Empty,
+  Facts,
+  Loaded,
+  ParticleCredit,
+  Sheet,
+  Stat,
+} from "../components/ui";
 import { compact, date, usdRange } from "../format";
 
 export function PodcastsTab({
@@ -37,10 +46,7 @@ export function PodcastsTab({
                 value={compact(d.sponsor.shows)}
                 sub={`${compact(d.sponsor.episodes)} episodes`}
               />
-              <Stat
-                label="Estimated podcast spend"
-                value={usdRange(podcastSpend(d))}
-              />
+              <Stat label="Estimated podcast spend" value={usdRange(podcastSpend(d))} />
               <Stat label="Latest read" value={date(d.sponsor.lastSeen)} />
             </div>
             {global && (
@@ -132,6 +138,7 @@ export function PodcastsTab({
                 </div>
               </Card>
             </div>
+            <ParticleCredit />
             {open && (
               <Sheet
                 title={
