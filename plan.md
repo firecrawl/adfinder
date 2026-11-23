@@ -51,7 +51,7 @@ Still to do:
 
 ---
 
-## Phase 1: Cache within provider terms [~]
+## Phase 1: Cache within provider terms [x]
 
 Before this phase, every result was cached in KV for 30 days and shared between all visitors. Built in PR #2.
 
@@ -86,10 +86,10 @@ Shipped in PR #2 and deployed on 23 Nov 2026 (version `4e69654d`):
 - Deleted all 73 podcast and traffic keys from production KV
 - On the live site, anonymous podcasts and traffic get 401
 - Later the same day, deleted the remaining 447 old-version keys (`ch:v2`, `sum:v3`, `hooks:v1` and the rest), so KV holds nothing older than this deploy. A `wrangler rollback` would now start with an empty cache
+- Filled the featured brands by hand with the seed key: KV now holds 25 `ch:v3` channel entries and 5 each of `sum:v4`, `hooks:v2`, `tr:v2` and `gap:v2`, and no podcast or traffic keys
+- Signed out on the live site, a featured brand's Meta, reviews and summary return 200; podcasts and traffic return 401. Signed in, podcasts return 200
 
-Still to do:
-- The featured brands are cold until the cron runs on 25 Nov at 06:00 UTC, or until someone signed in with the seed key opens each one and its analyses
-- Check that podcasts load on the live site for a signed-in visitor
+Still open, with Firecrawl (tracked in Phase 0): Particle's exact attribution wording, and whether per-user caching is allowed
 
 **Done when:** `wrangler kv key list` shows no traffic or podcast keys, no shared entry is older than 3 days (4 for featured brands), and podcasts still load for a signed-in visitor.
 
