@@ -18,7 +18,7 @@ Anyone can spend the site's language-model key today.
 
 - [x] **Compare needs sign-in.** `/api/compare` never checked for a session, so an anonymous visitor could run up to 8 model turns for two cached brands. A cached comparison is still served to anyone; a new one now needs sign-in and passes the model limits below
   - Not done: in-flight dedupe through the `Research` Durable Object. Compare streams its steps, which a Durable Object call doesn't pass through easily. The per-visitor limit caps the cost instead
-- [x] **Rate limit the model endpoints** (`/api/summary`, `hooks`, `translate`, `complaints`, `compare`): `allowModelRun` in `worker/index.ts`. Only runs that call the model count; cache hits are free
+- [x] **Rate limit the model endpoints** (`/api/summary`, `hooks`, `translate`, `complaints`, `compare`): `allowModelRun` in `worker/index.ts`. A run is charged once, at its first model call, inside the `Research` Durable Object. So cache hits, visitors joining a run in progress, and analyses that return early without calling the model are all free
   - Per visitor: 10 runs a minute (`MODEL_LIMIT` rate-limit binding, keyed by a hash of their Firecrawl key)
   - Site-wide: `MODEL_DAILY_LIMIT` runs a day (500, a var in `wrangler.jsonc`), counted in the `Budget` Durable Object
   - The featured-brands cron isn't limited
