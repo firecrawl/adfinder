@@ -7,6 +7,7 @@ import {
   AdSkeletons,
   Card,
   Empty,
+  NoResults,
   Facts,
   Loaded,
   SectionTitle,
@@ -29,9 +30,9 @@ export function GoogleTab({ load, brandName }: { load: Load<GoogleData>; brandNa
     <Loaded load={load} skeleton={<AdSkeletons />}>
       {(d) =>
         !d.advertiser ? (
-          <Empty title={`No Google ads found for ${brandName}`}>
+          <NoResults title={`No Google ads found for ${brandName}`}>
             Google's Ads Transparency Center has no ads for this advertiser or domain.
-          </Empty>
+          </NoResults>
         ) : (
           <>
             <Card title="How long each ad ran" meta="longest 15">

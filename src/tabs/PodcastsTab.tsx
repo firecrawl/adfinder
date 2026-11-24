@@ -6,7 +6,7 @@ import type { Load } from "../api";
 import {
   Accordion,
   Card,
-  Empty,
+  NoResults,
   Facts,
   Loaded,
   ParticleCredit,
@@ -29,9 +29,9 @@ export function PodcastsTab({
     <Loaded load={load}>
       {(d) =>
         !d.sponsor ? (
-          <Empty title={`${brandName} doesn't sponsor podcasts`}>
+          <NoResults title={`${brandName} doesn't sponsor podcasts`}>
             Particle tracks ad reads across thousands of shows and found none for this brand.
-          </Empty>
+          </NoResults>
         ) : (
           <>
             <div className="stats">

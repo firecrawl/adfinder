@@ -1,13 +1,14 @@
 import { ExternalLink } from "lucide-react";
 import { useEffect, useState } from "react";
-import type { MetaAd, MetaAdDetail, MetaData } from "../../shared/types";
+import type { HookPatterns, MetaAd, MetaAdDetail, MetaData } from "../../shared/types";
 import { api, type Load } from "../api";
 import { AdBrowser } from "../components/AdCard";
 import { Longevity } from "../components/Longevity";
+import { Patterns } from "../components/Patterns";
 import {
   AdSkeletons,
   Card,
-  Empty,
+  NoResults,
   Facts,
   Loaded,
   Mix,
@@ -29,20 +30,34 @@ const keep = (f: Filter) => (a: MetaAd) =>
   f === "all" ||
   (f === "winner" ? a.verdict === "winner" : f === "live" ? a.active : a.mediaType === f);
 
-export function MetaTab({ load, brandName }: { load: Load<MetaData>; brandName: string }) {
+export function MetaTab({
+  load,
+  hooks,
+  brandName,
+}: {
+  load: Load<MetaData>;
+  hooks: Load<HookPatterns>;
+  brandName: string;
+}) {
   return (
     <Loaded load={load} skeleton={<AdSkeletons />}>
       {(d) =>
         !d.advertiser ? (
-          <Empty title={`No Meta ads found for ${brandName}`}>
+          <NoResults title={`No Meta ads found for ${brandName}`}>
             Neither Upspring nor Meta's Ad Library returned ads for this brand.
-          </Empty>
+          </NoResults>
         ) : (
           <>
+            {/* Ours first: Upspring's themes are generic ("Service promotion"). */}
+            {hooks.status === "ok" && hooks.data.patterns.length > 0 && (
+              <div style={{ marginBottom: 28 }}>
+                <Patterns data={hooks.data} />
+              </div>
+            )}
             {d.brief && (
               <div className="grid2" style={{ marginBottom: 28 }}>
                 <Card
-                  title="Hook themes that keep running"
+                  title="Upspring's hook themes"
                   meta={`${compact(d.advertiser.activeAds)} active ads`}
                 >
                   <div className="themes">
@@ -95,11 +110,7 @@ export function MetaTab({ load, brandName }: { load: Load<MetaData>; brandName: 
             />
             <MetaAdGrid
               ads={d.ads}
-              note={
-                d.source === "library"
-                  ? "Winner: 60+ days"
-                  : "Winner: 30+ days, high delivery"
-              }
+              note={d.source === "library" ? "Winner: 60+ days" : "Winner: 30+ days, high delivery"}
             />
           </>
         )
@@ -164,7 +175,7 @@ function MetaDetail({ ad }: { ad: MetaAd }) {
           <track kind="captions" />
         </video>
       ) : (
-        ad.thumb && <img className="big" src={ad.thumb} alt="" />
+        ad.thumb && <img className="big" src={ad.thumb} alt={`Meta ad: ${ad.hook ?? ad.oneLine}`} />
       )}
       {ad.hook && (
         <div>

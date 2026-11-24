@@ -1,9 +1,10 @@
 import { ChevronDown, X } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
+import { useContext, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { PARTICLE_ATTRIBUTION } from "../../shared/channels";
 import type { Share, Verdict } from "../../shared/types";
 import type { Load } from "../api";
 import { pct } from "../format";
+import { NextSteps } from "../nextSteps";
 import { useSession } from "../session";
 
 export function Wordmark({ size = "sm", onClick }: { size?: "sm" | "lg"; onClick?: () => void }) {
@@ -56,6 +57,25 @@ export function Empty({
   );
 }
 
+// A provider returned nothing for this brand. With a country picked, searching everywhere may help.
+export function NoResults({ title, children }: { title: string; children: ReactNode }) {
+  const next = useContext(NextSteps);
+  return (
+    <Empty
+      title={title}
+      actions={
+        next?.worldwide && (
+          <button className="btn outline" onClick={next.worldwide}>
+            Search worldwide instead
+          </button>
+        )
+      }
+    >
+      {children}
+    </Empty>
+  );
+}
+
 export function SignInPrompt() {
   const { openSignIn } = useSession();
   return (
@@ -84,14 +104,27 @@ export function Loaded<T>({
 }) {
   if (!load || load.status === "loading")
     return <>{skeleton ?? <div className="skeleton" style={{ height: 240 }} />}</>;
-  if (load.status === "error") {
-    return load.auth === "missing" ? (
-      <SignInPrompt />
-    ) : (
-      <Empty title="Couldn't load this">{load.error}</Empty>
-    );
-  }
+  if (load.status === "error")
+    return load.auth === "missing" ? <SignInPrompt /> : <Failed error={load.error} />;
   return <>{children(load.data)}</>;
+}
+
+function Failed({ error }: { error: string }) {
+  const next = useContext(NextSteps);
+  return (
+    <Empty
+      title="Couldn't load this"
+      actions={
+        next && (
+          <button className="btn outline" onClick={next.retry}>
+            Try again
+          </button>
+        )
+      }
+    >
+      {error}
+    </Empty>
+  );
 }
 
 export function AdSkeletons({ n = 8 }: { n?: number }) {
@@ -274,5 +307,58 @@ export function Facts({ items }: { items: [string, ReactNode][] }) {
         </div>
       ))}
     </dl>
+  );
+}
+
+const WIDE = "(min-width: 721px)";
+const useWide = () =>
+  useSyncExternalStore(
+    (cb) => {
+      const m = window.matchMedia(WIDE);
+      m.addEventListener("change", cb);
+      return () => m.removeEventListener("change", cb);
+    },
+    () => window.matchMedia(WIDE).matches,
+  );
+
+// A section that's always shown on wide screens and folded behind a button on phones, so the
+// summary isn't followed by thousands of pixels of detail.
+export function Fold({ id, title, children }: { id: string; title: string; children: ReactNode }) {
+  const wide = useWide();
+  const [open, setOpen] = useState(false);
+  return (
+    <section className="fold" id={id}>
+      {wide || open ? (
+        children
+      ) : (
+        <button className="fold-btn" aria-expanded={false} onClick={() => setOpen(true)}>
+          {title}
+          <ChevronDown size={18} />
+        </button>
+      )}
+    </section>
+  );
+}
+
+// A list of a page's sections, in the left margin of wide screens (see .section-nav).
+export function SectionNav({ sections }: { sections: [id: string, label: string][] }) {
+  return (
+    <nav className="section-nav" aria-label="Sections">
+      <ul>
+        {sections.map(([id, label]) => (
+          <li key={id}>
+            <a
+              href={`#${id}`}
+              onClick={(e) => {
+                e.preventDefault();
+                document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+              }}
+            >
+              {label}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
   );
 }
