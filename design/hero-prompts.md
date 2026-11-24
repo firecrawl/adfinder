@@ -29,3 +29,15 @@ Model `nano_banana_2_1`, 5:4, 2k, thinking `high` (1.5 credits each), with one i
 | `r2-focused` | A marketing strategist in her early 30s sitting at a desk, leaning in toward a large monitor and reading it closely, one hand on the mouse, seen from slightly behind and to the side so both her face in profile and the whole screen are visible. | d13e0c9d-6a56-495b-8ca6-5c2aa5a46f2f | Most garbled; an Apple logo on the monitor |
 
 The screen shows real brands' ads and logos (AG1, Factor, HelloFresh), as the live product does. Before this goes on the public homepage, either composite the real screenshot onto the chosen photo's screen (crisp text, no model slips) or regenerate the screen from a dashboard with neutral demo brands, so no brand appears to endorse Ad Finder.
+
+## Chosen: `r2-pair`, with the real screen composited (`design/mockups/hero/r2-pair-final.jpg`)
+
+Two Nano Banana 2.1 edits that swapped the screen for the reference still garbled the small text ("Vow brand · coexted", "Meta ols"), so the screen was composited by hand with `design/hero-composite.py`:
+
+1. Warp `design/hero-screen.png` (the 1440×900 dashboard) onto the monitor. The corners were read off a 1200px preview by matching the logo, "Track a brand", the avatar and "Your brands" between the photo and the screenshot (about 0.4 scale, nearly square-on)
+2. Make it look photographed: a 0.7px blur, 92% contrast, 90% brightness, a slightly warmer cast and a faint diagonal glare
+3. Put the people back on top using Higgsfield's `image_background_remover` cutout of the original (job 1c1486ae-8f48-4e08-acc1-e7504b47b28b). Over the right part of the screen, neutral or bluish pixels are dropped (scraps of the old screen and its glow), small islands are removed, and the edge is trimmed 2px to lose the blue halo
+
+Re-run: `uv run --with pillow --with numpy --with scipy python -I design/hero-composite.py <dir with pair.png, cutout.png, dashboard-ref.png>`. To swap the screen (for example to a dashboard of neutral demo brands), replace the screenshot and run it again.
+
+**Before launch:** the screen still shows real brands (AG1, Factor, HelloFresh, Liquid Death, Hungryroot) and their ads. Decide whether that's acceptable on a marketing image, or re-run with a demo-brand screen.

@@ -6,7 +6,7 @@ document.documentElement.dataset.theme = q.get("theme") || "light";
 document.head.insertAdjacentHTML("beforeend", `<link rel="stylesheet" href="${dir}.css">`);
 
 // Where each generated hero photo's subject sits, so the crop keeps them in frame.
-const HERO_FOCUS = { "work-focused": "72% center", "work-overshoulder": "58% center", "happy-leanback": "42% center", "happy-pair": "88% center", "r2-focused": "60% center", "r2-happy": "70% center", "r2-pair": "55% center", "r2-closeup": "65% center" };
+const HERO_FOCUS = { "work-focused": "72% center", "work-overshoulder": "58% center", "happy-leanback": "42% center", "happy-pair": "88% center", "r2-focused": "60% center", "r2-happy": "70% center", "r2-pair": "55% center", "r2-closeup": "65% center", "r2-pair-final": "55% center" };
 const B = Object.fromEntries(window.BRANDS.map((b) => [b.name, b]));
 const fmt = (n) =>
   n >= 1e6 ? `${(n / 1e6).toFixed(1).replace(/\.0$/, "")}M` : n >= 1e4 ? `${Math.round(n / 1e3)}K` : n.toLocaleString("en-US");
@@ -39,7 +39,7 @@ function landing() {
     <div class="hero-copy">
     <h1>Every ad behind any business.</h1>
     <p class="lede">Meta and Google ads, podcast sponsorships and creator posts for any brand, with an AI read on what's working.</p>
-    <form class="search"><span class="icon">⌕</span><input placeholder="Search any brand or website" aria-label="Brand"><button class="btn primary">Find ads</button></form>
+    <form class="search"><span class="icon">⌕</span><input placeholder="${innerWidth < 600 ? "Search any brand" : "Search any brand or website"}" aria-label="Brand"><button class="btn primary">Find ads</button></form>
     <div class="chips"><span>Free to explore:</span>${window.BRANDS.map((b) => `<a class="chip">${logo(b, "xs")}${b.name}</a>`).join("")}</div>
     </div>
   </section>

@@ -62,7 +62,7 @@ Body copy is 18px on the landing page and 21px for the lede. The dashboard's dat
 
 ## Decision (24 Nov 2026)
 
-**B · Signal**, for the whole site, chosen by the product owner over the recommendation below. It also gets a photo in the hero: the headline and search on the left, a generated photo of someone working through ads in a framed card on the right (above the headline on phones). Four candidates are in `design/heroes.html`; prompts and provenance in `design/hero-prompts.md`. Next: pick a photo, then turn B into the site's tokens.
+**B · Signal**, for the whole site, chosen by the product owner over the recommendation below. It also gets a photo in the hero: the headline and search on the left, a generated photo of someone working through ads in a framed card on the right (above the headline on phones). The chosen photo is round 2's C (two colleagues, one pointing at a brand card) with the real dashboard composited onto the screen: `design/mockups/hero/r2-pair-final.jpg`. All candidates are in `design/heroes.html`; prompts, the compositing steps and provenance in `design/hero-prompts.md`. Next: turn B into the site's tokens.
 
 ## Recommendation (before the decision)
 
