@@ -60,7 +60,11 @@ Body copy is 18px on the landing page and 21px for the lede. The dashboard's dat
 - **Finish:** square 2–4px corners, ruled sections instead of cards with shadows, KPIs over a top rule like a newspaper table
 - **Why:** nothing else in the category looks like this. It matches what Ad Finder produces (a written read on a brand) and sets up Phase 5's printable report. Risk: the serif is less "tool-like" on the dashboard
 
-## Recommendation
+## Decision (24 Nov 2026)
+
+**B · Signal**, for the whole site, chosen by the product owner over the recommendation below. It also gets a photo in the hero: the headline and search on the left, a generated photo of someone working through ads in a framed card on the right (above the headline on phones). Four candidates are in `design/heroes.html`; prompts and provenance in `design/hero-prompts.md`. Next: pick a photo, then turn B into the site's tokens.
+
+## Recommendation (before the decision)
 
 **A for the product, with C's report styling kept in reserve for Phase 5's printable report.** A is the clearest at both widths, reads as Firecrawl's (the honest framing for a showcase that also became a product), and is the cheapest to carry to the existing pages: it keeps today's light-first, orange-accent structure while replacing the Google greys, the type and the flat background. B is the safe category look but makes Ad Finder look like Foreplay. C is the most memorable, and if the report becomes the product's centre, C is the one to choose.
 

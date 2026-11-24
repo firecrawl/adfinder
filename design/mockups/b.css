@@ -18,3 +18,13 @@ body{background-image:radial-gradient(var(--dot) 1px,transparent 1.2px);backgrou
 .kpis strong,.bars b{font-weight:700}
 .panel,.bcard,.feed,.shot{background:color-mix(in srgb,var(--surface) 88%,transparent);backdrop-filter:blur(6px)}
 @media (max-width:900px){:root{--h1:48px;--h2:30px;--h3:21px}.hero{padding-top:56px}}
+/* hero with a photo: copy left, the photo in a glowing frame right; stacked on phones */
+.hero.with-media{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:48px;align-items:center;padding-top:72px}
+.hero.with-media h1{font-size:68px}
+.hero-media{margin:0;order:2;aspect-ratio:4/5;border-radius:24px;overflow:hidden;border:1px solid var(--line-strong);box-shadow:0 40px 100px -40px rgb(255 90 31 / .45),0 0 0 6px color-mix(in srgb,var(--surface) 60%,transparent)}
+.hero-media img{width:100%;height:100%;object-fit:cover}
+@media (max-width:900px){
+  .hero.with-media{grid-template-columns:1fr;gap:24px;padding-top:24px}
+  .hero.with-media h1{font-size:44px}
+  .hero-media{order:0;aspect-ratio:16/10;border-radius:18px}
+}

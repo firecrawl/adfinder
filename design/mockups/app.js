@@ -5,6 +5,8 @@ const dir = q.get("dir") || "a";
 document.documentElement.dataset.theme = q.get("theme") || "light";
 document.head.insertAdjacentHTML("beforeend", `<link rel="stylesheet" href="${dir}.css">`);
 
+// Where each generated hero photo's subject sits, so the crop keeps them in frame.
+const HERO_FOCUS = { "work-focused": "72% center", "work-overshoulder": "58% center", "happy-leanback": "42% center", "happy-pair": "88% center" };
 const B = Object.fromEntries(window.BRANDS.map((b) => [b.name, b]));
 const fmt = (n) =>
   n >= 1e6 ? `${(n / 1e6).toFixed(1).replace(/\.0$/, "")}M` : n >= 1e4 ? `${Math.round(n / 1e3)}K` : n.toLocaleString("en-US");
@@ -32,11 +34,14 @@ function landing() {
   const top = ["AG1", "Liquid Death", "Factor", "HelloFresh", "Hungryroot", "AG1", "Liquid Death", "Factor"].map((n, i) => ({ b: B[n], a: B[n].ads[i + 1] }));
   return `${nav(false)}
 <main>
-  <section class="hero">
+  <section class="hero ${q.get("hero") ? "with-media" : ""}">
+    ${q.get("hero") ? `<figure class="hero-media"><img src="hero/${q.get("hero")}.jpg" alt="" style="object-position:${HERO_FOCUS[q.get("hero")] ?? "center"}"></figure>` : ""}
+    <div class="hero-copy">
     <h1>Every ad behind any business.</h1>
     <p class="lede">Meta and Google ads, podcast sponsorships and creator posts for any brand, with an AI read on what's working.</p>
     <form class="search"><span class="icon">⌕</span><input placeholder="Search a brand, like Olipop or ridge.com" aria-label="Brand"><button class="btn primary">Find ads</button></form>
     <div class="chips"><span>Free to explore:</span>${window.BRANDS.map((b) => `<a class="chip">${logo(b, "xs")}${b.name}</a>`).join("")}</div>
+    </div>
   </section>
 
   <section class="shot" aria-label="Example: AG1">
