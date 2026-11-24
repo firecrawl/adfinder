@@ -40,8 +40,9 @@ export async function api<T>(path: string, body?: unknown): Promise<T> {
 // it) doesn't ask the server again. Failures are dropped so they can be retried.
 const memo = new Map<string, Promise<unknown>>();
 export const clearMemo = () => memo.clear();
+const memoKey = (path: string, body: unknown) => `${path} ${JSON.stringify(body)}`;
 function load<T>(path: string, body: unknown, fresh = false): Promise<T> {
-  const key = `${path} ${JSON.stringify(body)}`;
+  const key = memoKey(path, body);
   if (fresh) memo.delete(key);
   let p = memo.get(key) as Promise<T> | undefined;
   if (!p) {
@@ -95,12 +96,16 @@ export function useBrand(brand: Brand, epoch: number) {
       setStore((s) => ({ id, state: { ...(s?.id === id ? s.state : loading()), ...patch } }));
     const started = performance.now();
     const ms = () => Math.round(performance.now() - started);
-    const cached = load<{ cached: Channel[] }>("/api/cached", brand).then(
+    // Asked on every visit: the channels loaded since the last one may have filled the cache.
+    const cached = api<{ cached: Channel[] }>("/api/cached", brand).then(
       (r) => (set({ cached: r.cached }), r.cached),
       () => null,
     );
     const loaded = CHANNEL_LIST.map((ch) => {
+      // Already loaded this session: nothing was fetched, so there's no timing to record.
+      const remembered = memo.has(memoKey(`/api/channel/${ch}`, brand));
       const done = (ok: boolean) => {
+        if (remembered) return;
         const at = ms();
         void cached.then((c) =>
           track("channel_loaded", { channel: ch, ms: at, cached: c && c.includes(ch), ok }),
@@ -123,18 +128,23 @@ export function useBrand(brand: Brand, epoch: number) {
     );
     // The server stops waiting for slow channels after 25s and marks what it made from the rest as
     // partial. Once every channel has arrived, ask again for the full one.
-    const analyse = (name: keyof Analyses, fresh = false): void =>
-      void load<Analyses[typeof name] & { partial?: true }>(`/api/${name}`, brand, fresh).then(
+    const analyse = (name: keyof Analyses, fresh = false) => {
+      const path = `/api/${name}`;
+      const remembered = !fresh && memo.has(memoKey(path, brand));
+      const done = (ok: boolean, partial = false) =>
+        remembered || track("analysis_loaded", { analysis: name, ms: ms(), partial, ok });
+      void load<Analyses[typeof name] & { partial?: true }>(path, brand, fresh).then(
         (data) => {
           set({ [name]: { status: "ok", data } });
-          track("analysis_loaded", { analysis: name, ms: ms(), partial: !!data.partial, ok: true });
+          done(true, !!data.partial);
           if (data.partial && !fresh) void shared.then(() => analyse(name, true));
         },
         (e) => {
-          track("analysis_loaded", { analysis: name, ms: ms(), partial: false, ok: false });
+          done(false);
           if (!fresh) set({ [name]: fail(e) });
         },
       );
+    };
     for (const name of ["summary", "hooks", "complaints"] as const) analyse(name);
     return () => {
       live = false;
