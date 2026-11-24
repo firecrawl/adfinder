@@ -29,6 +29,7 @@ export function PodcastsTab({
     <Loaded load={load}>
       {(d) =>
         !d.sponsor ? (
+          // Particle ignores the country, so unlike the other tabs there's no wider search to offer.
           <Empty title={`${brandName} doesn't sponsor podcasts`}>
             Particle tracks ad reads across thousands of shows and found none for this brand.
           </Empty>

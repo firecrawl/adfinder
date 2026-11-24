@@ -8,7 +8,7 @@
   --text: #202124;
   --text-2: #3c4043;
   --muted: #5f6368;
-  --faint: #80868b;
+  --faint: #676c71;
   --link: #1a0dab;
   --blue: #1a73e8;
   --fire: #fa5d19;
@@ -29,6 +29,8 @@
   --glass: rgb(255 255 255 / 0.92);
   --fire-line: #f6d2c0;
   --fire-ink: #b3410e;
+  /* The accent as text: --fire itself is 3.2:1 on white, below WCAG AA. */
+  --fire-text: #b3410e;
   --neutral-mark: #9aa0a6;
   --radius: 12px;
   --shadow: 0 1px 2px rgb(60 64 67 / 0.15), 0 1px 3px 1px rgb(60 64 67 / 0.08);
@@ -51,13 +53,14 @@
   --text: #e8eaed;
   --text-2: #c9cccf;
   --muted: #9aa0a6;
-  --faint: #80868b;
+  --faint: #90959a;
   --link: #8ab4f8;
   --blue: #8ab4f8;
   --fire: #fa5d19;
   --fire-soft: #2d1a12;
   --fire-line: #5a2f1c;
   --fire-ink: #ffb08a;
+  --fire-text: #fa5d19;
   --good: #6dd58c;
   --good-soft: #15291c;
   --bad: #f28b82;
@@ -90,6 +93,14 @@ button {
   font: inherit;
   color: inherit;
   cursor: pointer;
+}
+:where(button, a, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+.tab:focus-visible {
+  outline-offset: -2px;
+  border-radius: 8px;
 }
 a {
   color: var(--blue);
@@ -646,7 +657,7 @@ p {
   color: var(--text);
 }
 .tab.on {
-  color: var(--fire);
+  color: var(--fire-text);
   font-weight: 600;
 }
 .tab.on::after {
@@ -670,6 +681,22 @@ p {
 .tab .spin {
   width: 12px;
   height: 12px;
+}
+
+.tabs.fade-right {
+  mask-image: linear-gradient(to right, #000 calc(100% - 48px), transparent);
+}
+.tabs.fade-left {
+  mask-image: linear-gradient(to left, #000 calc(100% - 48px), transparent);
+}
+.tabs.fade-left.fade-right {
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 48px,
+    #000 calc(100% - 48px),
+    transparent
+  );
 }
 
 .progress {
@@ -810,7 +837,7 @@ p {
   gap: 6px;
   font-size: 12px;
   font-weight: 600;
-  color: var(--fire);
+  color: var(--fire-text);
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
@@ -1197,7 +1224,7 @@ button.row:hover {
 .theme h4 {
   font-size: 12px;
   letter-spacing: 0.06em;
-  color: var(--fire);
+  color: var(--fire-text);
 }
 .theme p {
   margin-top: 6px;
@@ -1643,7 +1670,7 @@ button.row:hover {
   font-size: 13px;
 }
 .duel .crown {
-  color: var(--fire);
+  color: var(--fire-text);
 }
 .agent {
   padding: 18px 20px;
@@ -2005,8 +2032,40 @@ button.row:hover {
     grid-template-columns: minmax(0, 110px) minmax(0, 1fr) 52px;
     gap: 8px;
   }
-  .patterns .hide-sm {
+}
+@media (max-width: 640px) {
+  .patterns thead {
     display: none;
+  }
+  .patterns,
+  .patterns tbody,
+  .patterns tr,
+  .patterns td {
+    display: block;
+  }
+  .patterns tr {
+    padding: 14px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .patterns tr:last-child {
+    border-bottom: 0;
+  }
+  .patterns td,
+  .patterns tr:last-child td {
+    padding: 0;
+    border: 0;
+  }
+  .patterns .example {
+    margin: 8px 0;
+  }
+  .patterns .num {
+    display: inline-block;
+    text-align: left;
+    margin-right: 18px;
+  }
+  .patterns .num::before {
+    content: attr(data-label) " ";
+    color: var(--faint);
   }
 }
 
@@ -2309,6 +2368,67 @@ button.row:hover {
   background: var(--surface);
 }
 
+.fold,
+.scorecard {
+  scroll-margin-top: 90px;
+}
+.fold + .fold {
+  margin-top: 22px;
+}
+.scorecard + .fold {
+  margin-top: 22px;
+}
+.fold-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--card);
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 600;
+  text-align: left;
+}
+.fold-btn svg {
+  color: var(--faint);
+}
+.section-nav {
+  display: none;
+}
+@media (min-width: 1440px) {
+  .overview {
+    position: relative;
+  }
+  .section-nav {
+    display: block;
+    position: absolute;
+    top: 0;
+    right: calc(100% + 28px);
+    width: 112px;
+    height: 100%;
+  }
+  .section-nav ul {
+    position: sticky;
+    top: 96px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: 10px;
+    font-size: 13px;
+  }
+  .section-nav a {
+    color: var(--muted);
+    text-decoration: none;
+  }
+  .section-nav a:hover {
+    color: var(--text);
+  }
+}
+
 .locked-note {
   margin-bottom: 16px;
   padding: 12px 16px;
@@ -2533,6 +2653,17 @@ button.row:hover {
   .wide-only {
     display: none;
   }
+  /* Two ads per row: one full-width card per ad made the Meta tab about 19,000px tall. */
+  .ads {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .ad .txt {
+    padding: 10px 10px 12px;
+  }
+  .ad .hook {
+    font-size: 13px;
+  }
 }
 @media (max-width: 360px) {
   .account {
@@ -2610,14 +2741,14 @@ button.row:hover {
   color: var(--text-2);
 }
 .complaints .steal {
-  color: var(--fire);
+  color: var(--fire-text);
 }
 .complaints .steal svg {
   vertical-align: -2px;
 }
 .badge.opening {
   background: var(--fire-soft);
-  color: var(--fire);
+  color: var(--fire-text);
   box-shadow: none;
 }
 

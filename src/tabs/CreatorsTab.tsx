@@ -8,7 +8,7 @@ import {
   Accordion,
   AdSkeletons,
   Card,
-  Empty,
+  NoResults,
   Facts,
   Loaded,
   SectionTitle,
@@ -55,7 +55,7 @@ function PostDetail({ post: p, en }: { post: UgcPost; en: English }) {
   const t = en?.[p.id];
   return (
     <>
-      {p.thumb && <img className="big" src={p.thumb} alt="" />}
+      {p.thumb && <img className="big" src={p.thumb} alt={`Post by @${p.handle}: ${p.hook}`} />}
       <div>
         <h4>Hook</h4>
         <p className="quote">“{t?.hook ?? p.hook}”</p>
@@ -165,9 +165,9 @@ export function CreatorsTab({ load, brand }: { load: Load<UgcData>; brand: Brand
     <Loaded load={load} skeleton={<AdSkeletons />}>
       {(d) =>
         !d.posts.length ? (
-          <Empty title={`No creator posts found for ${brand.name}`}>
+          <NoResults title={`No creator posts found for ${brand.name}`}>
             Oriane's TikTok and Instagram index has no posts mentioning this brand.
-          </Empty>
+          </NoResults>
         ) : (
           <>
             <div className="stats">
@@ -204,9 +204,7 @@ export function CreatorsTab({ load, brand }: { load: Load<UgcData>; brand: Brand
               meta={
                 d.posts.some((p) => p.language && p.language !== "en") ? (
                   <EnglishToggle on={english} load={tr} onChange={setEnglish} />
-                ) : (
-                  null
-                )
+                ) : null
               }
             >
               {tr?.status === "error" && <p className="err">{tr.error}</p>}
@@ -244,6 +242,14 @@ export function CreatorsTab({ load, brand }: { load: Load<UgcData>; brand: Brand
   );
 }
 
+const RATE_CARD = [
+  ["Nano (under 10K)", "$20–$200", "$20–$500"],
+  ["Micro (10K–50K)", "$200–$2K", "$500–$2K"],
+  ["Mid-tier (50K–500K)", "$2K–$5K", "$2K–$5K"],
+  ["Macro (500K–1M)", "$5K–$15K", "$5K–$20K"],
+  ["Mega (1M+)", "$15K–$50K", "$20K–$50K"],
+] as const;
+
 function SpendMethod() {
   return (
     <div className="estimate">
@@ -260,16 +266,16 @@ function SpendMethod() {
           </tr>
         </thead>
         <tbody>
-          <tr><td>Nano (under 10K)</td><td>$20–$200</td><td>$20–$500</td></tr>
-          <tr><td>Micro (10K–50K)</td><td>$200–$2K</td><td>$500–$2K</td></tr>
-          <tr><td>Mid-tier (50K–500K)</td><td>$2K–$5K</td><td>$2K–$5K</td></tr>
-          <tr><td>Macro (500K–1M)</td><td>$5K–$15K</td><td>$5K–$20K</td></tr>
-          <tr><td>Mega (1M+)</td><td>$15K–$50K</td><td>$20K–$50K</td></tr>
+          {RATE_CARD.map(([tier, ig, tt]) => (
+            <tr key={tier}>
+              <td>{tier}</td>
+              <td>{ig}</td>
+              <td>{tt}</td>
+            </tr>
+          ))}
         </tbody>
       </table>
-      <p>
-        Source: Hootsuite 2026 benchmarks.
-      </p>
+      <p>Source: Hootsuite 2026 benchmarks.</p>
     </div>
   );
 }

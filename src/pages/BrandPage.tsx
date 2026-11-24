@@ -1,10 +1,19 @@
 import { Check, ChevronDown, Globe, GitCompareArrows, Lock, RefreshCw, X } from "lucide-react";
-import { useEffect, useEffectEvent, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useEffectEvent,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { CACHE_POLICY, CHANNEL_INFO, CHANNEL_LIST } from "../../shared/channels";
 import type { Brand, Channel } from "../../shared/types";
 import { track } from "../analytics";
 import { api, useBrand, type BrandState } from "../api";
 import { Empty, SignInPrompt } from "../components/ui";
+import { NextSteps } from "../nextSteps";
 import { COUNTRIES, logo } from "../format";
 import { remember } from "../recent";
 import { useSession } from "../session";
@@ -94,6 +103,10 @@ function BrandView({
   onRefresh,
 }: BrandPageProps) {
   const state = useBrand(brand, epoch);
+  const next = useMemo(
+    () => ({ retry: onRefresh, worldwide: brand.country ? () => onCountry("") : null }),
+    [onRefresh, onCountry, brand.country],
+  );
   useEffect(() => {
     remember(brand);
     track("brand_viewed", { brand: brand.domain || brand.name, country: brand.country ?? "" });
@@ -107,7 +120,7 @@ function BrandView({
   ];
   const body: Record<Tab, () => ReactNode> = {
     overview: () => <OverviewTab state={state} onCompareWith={onCompareWith} />,
-    meta: () => <MetaTab load={state.meta} brandName={brand.name} />,
+    meta: () => <MetaTab load={state.meta} hooks={state.hooks} brandName={brand.name} />,
     google: () => <GoogleTab load={state.google} brandName={brand.name} />,
     podcasts: () => (
       <PodcastsTab load={state.podcasts} brandName={brand.name} global={!!brand.country} />
@@ -158,14 +171,17 @@ function BrandView({
           </button>
         </div>
       </div>
-      <div className="tabs" role="tablist">
+      <Tabs ids={tabs.map(([id]) => id)} tab={tab} onTab={onTab}>
         {tabs.map(([id, label, ch]) => {
           const n = ch ? count(state, ch) : null;
           return (
             <button
               key={id}
+              id={`tab-${id}`}
               role="tab"
               aria-selected={tab === id}
+              aria-controls="tabpanel"
+              tabIndex={tab === id ? 0 : -1}
               className={`tab ${tab === id ? "on" : ""}`}
               onClick={() => onTab(id)}
             >
@@ -178,10 +194,73 @@ function BrandView({
             </button>
           );
         })}
-      </div>
+      </Tabs>
       <Progress state={state} />
-      {body[tab]()}
+      <div id="tabpanel" role="tabpanel" aria-labelledby={`tab-${tab}`}>
+        <NextSteps.Provider value={next}>{body[tab]()}</NextSteps.Provider>
+      </div>
     </main>
+  );
+}
+
+const KEYS: Record<string, (i: number, n: number) => number> = {
+  ArrowRight: (i, n) => (i + 1) % n,
+  ArrowLeft: (i, n) => (i - 1 + n) % n,
+  Home: () => 0,
+  End: (_, n) => n - 1,
+};
+
+// The tab row scrolls sideways on narrow screens: it fades at whichever edge has more tabs, keeps the
+// open tab in view, and moves between tabs with the arrow keys.
+function Tabs({
+  ids,
+  tab,
+  onTab,
+  children,
+}: {
+  ids: Tab[];
+  tab: Tab;
+  onTab: (t: Tab) => void;
+  children: ReactNode;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [edges, setEdges] = useState("");
+  const measure = useCallback(() => {
+    const el = ref.current;
+    if (!el) return;
+    const left = el.scrollLeft > 2;
+    const right = el.scrollLeft + el.clientWidth < el.scrollWidth - 2;
+    setEdges(`${left ? "fade-left" : ""} ${right ? "fade-right" : ""}`);
+  }, []);
+  useEffect(() => {
+    ref.current
+      ?.querySelector<HTMLElement>('[aria-selected="true"]')
+      ?.scrollIntoView({ block: "nearest", inline: "nearest" });
+    measure();
+  }, [tab, measure]);
+  useEffect(() => {
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [measure]);
+  return (
+    <div
+      ref={ref}
+      className={`tabs ${edges}`}
+      role="tablist"
+      aria-label="Channels"
+      tabIndex={-1}
+      onScroll={measure}
+      onKeyDown={(e) => {
+        const move = KEYS[e.key];
+        if (!move) return;
+        e.preventDefault();
+        const next = ids[move(ids.indexOf(tab), ids.length)]!;
+        onTab(next);
+        document.getElementById(`tab-${next}`)?.focus();
+      }}
+    >
+      {children}
+    </div>
   );
 }
 

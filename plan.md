@@ -155,20 +155,27 @@ After, on the live site on 24 Nov (version `8fab4952`), three brands nobody had 
 
 ---
 
-## Phase 3: Layout, mobile and accessibility
+## Phase 3: Layout, mobile and accessibility [~]
 
-From screenshots of the live site at 390px wide. This comes before the report, so the report reuses fixed components.
+From screenshots of the live site at 390px wide. This comes before the report, so the report reuses fixed components. Built on 24 Nov; checked locally at 390px and 1440px in both themes.
 
-- [ ] **Tabs:** on mobile they run off the screen, hiding Podcasts and Creators. Make them scroll with a fade at the edge, or wrap them
-- [ ] **Hook patterns:** the table is unreadable on mobile (the description wraps one word per line). Use stacked cards under about 640px
-- [ ] **Overview:**
-  - Mobile: about 5,000px tall. Put the summary first and collapse the sections below
-  - Make it one `Scorecard` component (headline, a 0–10 score per channel, 3 key numbers), so the report can reuse it
-  - Desktop: a sticky section list down the side
-- [ ] **Meta tab:** lead with our own hook patterns; Upspring's hook themes are generic ("Service promotion")
-- [ ] **Empty states:** say why a channel is empty (no ads found, no data for this country, or sign in to load) and offer the next step
-- [ ] **Accessibility:** tab keyboard behaviour, contrast in both themes, alt text on ad images, focus states
-- [ ] **README:** replace the Vite template with what Ad Finder is, how to run it, the env vars, and the providers it uses and their cache policies
+- [x] **Tabs:** they scroll sideways and fade at whichever edge has more tabs, and the open tab scrolls into view. Proper ARIA tabs: arrow keys, Home and End move between them, with one tab stop and a `tabpanel`
+- [x] **Ad grids:** two ads per row under 480px. Page heights at 390px for Olipop: Meta 19,470px → 8,391px, Google 16,016 → 5,897, Creators 17,085 → 6,325
+- [x] **Hook patterns:** `src/components/Patterns.tsx`; a table on wide screens, a card per pattern under 640px (with its best example, which the table used to hide on mobile)
+- [x] **Overview:**
+  - `Scorecard` (`src/components/Scorecard.tsx`): the key numbers, headline, verdict and a 0–10 score per channel; the Overview adds the insights beside it, the report can use it alone
+  - Order: scorecard and insights first, then the timeline, hook patterns and complaints. On phones those three fold behind a button (`Fold`), so the Overview went from about 3,100px to 1,900px signed out
+  - At 1440px and wider, a sticky list of sections sits in the left margin (`SectionNav`)
+  - The timeline draws at its real width, so its labels stay 11–12px on a phone instead of shrinking to about 4px, with short labels ("Meta ads") that fit its narrower label column
+- [x] **Meta tab:** opens with our hook patterns; Upspring's themes follow, labelled as Upspring's
+- [x] **Empty states:** a failed section offers "Try again"; a channel with no results for a picked country offers "Search worldwide instead" (`NextSteps` context from the brand page), except Podcasts, since Particle ignores the country. Sign-in prompts were already there
+- [x] **Accessibility:**
+  - Contrast: light `--faint` was 3.3–3.7:1 and is now 4.8–5.3:1; dark `--faint` 3.9–4.5:1 → 4.7–6.2:1. The orange accent as text was 3.2:1 on white, so text uses a new `--fire-text` token (`--fire-ink` in light, 5.2–5.7:1)
+  - A visible focus outline on buttons, links and tabs
+  - The large ad and creator-post images in the detail sheets have alt text; card thumbnails stay decorative, since each card's button is named by its hook
+- [x] **README:** what Ad Finder is, the stack, how to run it, the env vars, and each provider with its cache policy
+
+**Done when:** at 390px every tab is reachable and no page scrolls sideways, the Overview leads with the summary, and every text colour meets WCAG AA (4.5:1) in both themes.
 
 ---
 
