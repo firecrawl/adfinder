@@ -46,7 +46,7 @@ Shipped in PR #1 and deployed on 23 Nov 2026 (version `779099f4`). On the live s
 - Cached brands still load in about 0.2s
 
 Still to do:
-- Confirm events arrive in Analytics Engine: run the query above in the Cloudflare dashboard, or with an API token that has Account Analytics read
+- [x] Events arrive in Analytics Engine (checked 24 Nov with `wrangler auth token` and the SQL API; numbers in Phase 2)
 - Get Firecrawl's answers to the two questions above
 
 ---
@@ -98,6 +98,20 @@ Still open, with Firecrawl (tracked in Phase 0): Particle's exact attribution wo
 ## Phase 2: Speed up the first search
 
 A cached brand loads in about 0.1–0.4s per channel. A brand nobody has searched yet is slow. Measure a cold search before and after with Phase 0's analytics and PostHog, and write the numbers here. This comes before the dashboard because every dashboard refresh is a cold search.
+
+Before, from the 5 featured brands filled cold on 23 Nov (Analytics Engine, misses only):
+
+| Lookup | Average | Median | Slowest | Credits per brand |
+|-|-|-|-|-|
+| Meta | 45.2s | 26.7s | 87.0s | 240 |
+| Reviews | 32.8s | 22.8s | 87.0s | 17 |
+| UGC | 10.5s | 1.8s | 25.5s | 130 |
+| Trends | 10.1s | 1.6s | 24.3s | 5 |
+| Google | 0.8s | 0.9s | 0.9s | 5 |
+| Podcasts (2 live loads) | 4.0s | | 4.2s | 100 |
+| Summary, once channels are cached | 3.6s | 3.4s | 5.3s | model only |
+
+So a cold brand shows Google in under a second, but its summary waits for the slowest channel, usually Meta or reviews: about 30–90s.
 
 - [ ] **PostHog, to see how the site performs for visitors** (Analytics Engine only sees the Worker):
   - `posthog-js` in the client, EU cloud host, cookieless (`persistence: "memory"`) until there are accounts, so no consent banner is needed yet
