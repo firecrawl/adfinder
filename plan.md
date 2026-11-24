@@ -166,9 +166,9 @@ From screenshots of the live site at 390px wide. This comes before the report, s
   - `Scorecard` (`src/components/Scorecard.tsx`): the key numbers, headline, verdict and a 0–10 score per channel; the Overview adds the insights beside it, the report can use it alone
   - Order: scorecard and insights first, then the timeline, hook patterns and complaints. On phones those three fold behind a button (`Fold`), so the Overview went from about 3,100px to 1,900px signed out
   - At 1440px and wider, a sticky list of sections sits in the left margin (`SectionNav`)
-  - The timeline draws at its real width, so its labels stay 11–12px on a phone instead of shrinking to about 4px
+  - The timeline draws at its real width, so its labels stay 11–12px on a phone instead of shrinking to about 4px, with short labels ("Meta ads") that fit its narrower label column
 - [x] **Meta tab:** opens with our hook patterns; Upspring's themes follow, labelled as Upspring's
-- [x] **Empty states:** a failed section offers "Try again"; a channel with no results for a picked country offers "Search worldwide instead" (`NextSteps` context from the brand page). Sign-in prompts were already there
+- [x] **Empty states:** a failed section offers "Try again"; a channel with no results for a picked country offers "Search worldwide instead" (`NextSteps` context from the brand page), except Podcasts, since Particle ignores the country. Sign-in prompts were already there
 - [x] **Accessibility:**
   - Contrast: light `--faint` was 3.3–3.7:1 and is now 4.8–5.3:1; dark `--faint` 3.9–4.5:1 → 4.7–6.2:1. The orange accent as text was 3.2:1 on white, so text uses a new `--fire-text` token (`--fire-ink` in light, 5.2–5.7:1)
   - A visible focus outline on buttons, links and tabs
