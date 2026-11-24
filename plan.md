@@ -155,7 +155,7 @@ After, on the live site on 24 Nov (version `8fab4952`), three brands nobody had 
 
 ---
 
-## Phase 3: Layout, mobile and accessibility [~]
+## Phase 3: Layout, mobile and accessibility [x]
 
 From screenshots of the live site at 390px wide. This comes before the report, so the report reuses fixed components. Built on 24 Nov; checked locally at 390px and 1440px in both themes.
 
@@ -176,6 +176,8 @@ From screenshots of the live site at 390px wide. This comes before the report, s
 - [x] **README:** what Ad Finder is, the stack, how to run it, the env vars, and each provider with its cache policy
 
 **Done when:** at 390px every tab is reachable and no page scrolls sideways, the Overview leads with the summary, and every text colour meets WCAG AA (4.5:1) in both themes.
+
+Shipped in PR #6 and deployed on 24 Nov 2026 (version `cc12203f`). On the live site at 390px, AG1's Overview is 1,920px tall with the scorecard first and two sections folded, its Meta tab opens with the hook patterns and is 8,632px tall, nothing scrolls sideways, and there are no console errors.
 
 ---
 
