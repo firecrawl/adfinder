@@ -185,14 +185,20 @@ Shipped in PR #6 and deployed on 24 Nov 2026 (version `cc12203f`). On the live s
 
 Signed out, the home page is a landing page that shows what Ad Finder does. Signed in, it's a dashboard of the brands you track. Today the home page is a wordmark, one tagline, a search box and five "Try" chips, and a Firecrawl sign-in lives only in a cookie, so nothing can be saved.
 
-**Decide first: who pays for dashboard refreshes.** Tracked brands are refreshed without the user there, and each refresh spends Firecrawl credits. Either:
-- store each user's Firecrawl key encrypted (with consent) and refresh on their account, or
-- refresh on a house key with a cap on tracked brands per user (a free tier, with a paid tier later)
+Decided on 24 Nov:
+- **Refreshes run on each user's own Firecrawl key**, stored encrypted with their consent. A user who connects no key can track brands but they only refresh when opened. About 400 credits per brand per refresh, so the dashboard says what each tracked brand costs
+- **Email goes through Resend** (works from Workers with `fetch`; free up to 3,000 emails a month)
 
-### 4a. Accounts
-- [ ] **Sign in with Google or an email link.** Use a library that runs on Workers with D1 (e.g. Better Auth). Email links need an email provider (Resend or Postmark), which 4d's alerts reuse
+### 4a. Design direction (first)
+The current look is a generic search-engine style: Google greys, a wordmark, a search box and chips. Every product in the category commits to an identity and leads with real product data. Research, screenshots and recommendations: `docs/design-research.md`.
+- [ ] **Two or three directions as static mockups**: the landing hero and first screens, and a dashboard screen, in both themes at 390px and 1440px. Use the `site-design` skill's reference-led process
+- [ ] **Pick one** and turn it into tokens (colour, type, spacing, texture) in `src/index.css` before 4c and 4d are built
+- [ ] Carry it to the existing pages (brand page, compare, docs) so the site reads as one product
+
+### 4b. Accounts
+- [ ] **Sign in with Google or an email link.** Use a library that runs on Workers with D1 (e.g. Better Auth). Email links go through Resend (decided 24 Nov), which 4e's weekly email reuses
 - [ ] **Connect Firecrawl** from settings, with the existing Firecrawl sign-in or a pasted key. Searching still runs on the user's own Firecrawl account. Anonymous visitors can still browse the featured brands
-- [ ] **User store (D1), additive migrations only:** users, connected Firecrawl key (encrypted, if 4a's decision needs it), tracked brands, snapshots
+- [ ] **User store (D1), additive migrations only:** users, connected Firecrawl key (encrypted), tracked brands, snapshots
 - [ ] **Privacy:** delete-my-account removes the user, their tracked brands, snapshots and stored key. Update the Privacy page, and switch PostHog from cookieless to identified users with consent
 - [ ] **Turn PostHog on** (moved from Phase 2; the code shipped there and stays silent without a key):
   - Create an EU project and put its key in `.env` as `VITE_POSTHOG_KEY` before `bun run deploy`
@@ -200,28 +206,33 @@ Signed out, the home page is a landing page that shows what Ad Finder does. Sign
   - Build the funnel (home → search → brand viewed → sign in started → sign in completed, then account created) and a dashboard of `channel_loaded` and `analysis_loaded` ms, cached vs not
 - [ ] Move existing signed-in visitors over: a Firecrawl cookie with no account keeps working until it expires
 
-### 4b. Landing page (signed out)
-- [ ] **Hero:** the search box stays at the top. A sharper tagline and one line on what's free (the featured brands) and what needs an account
+### 4c. Landing page (signed out)
+- [ ] **Hero:** an outcome headline with the search box as the one action (as Atria puts its prompt box in the hero), example brands as chips under it, and one line on what's free (the featured brands) and what needs an account
+- [ ] **A live product shot straight under the hero**, built from a featured brand's cached data: the scorecard, a strip of real ad thumbnails with days running, the hook patterns. Every product in the category shows its real product here, never an illustration
 - [ ] **Feature sections, each shown with real data** from a featured brand's shared cache (never podcasts or traffic, which can't be shown to anonymous visitors):
   - Every ad on Meta and Google, with how long each has run
   - Creator posts (UGC), search trends and reviews
   - The AI summary, hook patterns, and complaints matched against ads
   - Compare two businesses
-  - The dashboard and weekly email (4c, 4d)
+  - The dashboard and weekly email (4d, 4e)
   - The MCP server and `llms.txt`, for using it from an agent
-- [ ] **Data from Firecrawl Alexandria:** the provider behind each channel, linking to the Docs page
+- [ ] **Data from Firecrawl Alexandria:** a proof strip of the provider behind each channel, linking to the Docs page. It stands in for the customer logo walls competitors use
+- [ ] **"Top ads this week"**, free and public, from the featured and most-viewed cached brands (like Motion's Trending page)
 - [ ] **Featured brands as cards** (logo, ad counts, one line from the summary) instead of bare chips. Fall back to the chips when the cache is cold
 - [ ] **Meta tags and share image** for `/`: title, description and an `og:image` (Phase 5b covers per-report images)
 
-### 4c. Dashboard (signed in)
+### 4d. Dashboard (signed in)
 - [ ] **Track a brand** from its page or the dashboard. Mark one as **your brand**; it's pinned first and the comparisons below are against it
-- [ ] **A card per tracked brand:** logo, active ads per channel, ads started and stopped since the last snapshot, newest creator posts, and the summary's headline
+- [ ] **A header line written by the model from the snapshots:** "Since last week: 14 new ads, 6 stopped, 2 brands changed strategy"
+- [ ] **A card per tracked brand:** logo, active ads per channel with the change since the last snapshot, the newest ad thumbnails and creator posts, the summary's headline, and when it was last updated
+- [ ] **A dated feed of changes** across tracked brands (new ads, stopped ads, new creator posts, a jump in search interest), filterable by brand and channel. Changes are kept, so the feed is also the history
+- [ ] **A launch timeline on the brand page:** ads grouped by start date with a bar for days running (as Foreplay's Spyder does)
 - [ ] **Snapshots:** the refresh stores each tracked brand's shared-cache channels in D1 so changes can be shown. Podcasts and traffic are never stored (provider terms); they load live when the brand is opened
 - [ ] **Thumbnails in R2** for ads in snapshots: Meta's media links expire after about 4 days
-- [ ] **Refresh:** through Cloudflare Queues, one brand per message, on 4a's chosen key, spaced out so Upspring's `ads/browse` limit isn't hit (Phase 2)
+- [ ] **Refresh:** through Cloudflare Queues, one brand per message, on the user's own Firecrawl key, spaced out so Upspring's `ads/browse` limit isn't hit (Phase 2)
 - [ ] Recently viewed moves here from the home page
 
-### 4d. Weekly email
+### 4e. Weekly email
 - [ ] For each user, what changed for their tracked brands: new ads, ads stopped, new creator posts. Every email has an unsubscribe link
 
 ### Not doing
@@ -268,7 +279,7 @@ Print:
 
 ### 5c. My brand vs competitors (opt-in)
 - [ ] Enter your brand and up to 3 rivals, get a gap report: where they spend and you don't, and hooks they run that you don't
-- [ ] Signed in, default to the dashboard's "your brand" and tracked competitors (Phase 4c)
+- [ ] Signed in, default to the dashboard's "your brand" and tracked competitors (Phase 4d)
 - [ ] It's 3 extra cold searches plus model calls, so show the credit estimate first. The 3 competitors from `Summary.competitors` are guessed by the model, so let the visitor confirm or edit them
 
 ### 5d. MCP
