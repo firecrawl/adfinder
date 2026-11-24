@@ -5,6 +5,8 @@ import { compact, monthLabel } from "../format";
 type Lane = {
   key: string;
   label: string;
+  // Fits the narrower label column on phones.
+  short: string;
   unit: string;
   color: string;
   kind: "line" | "bar";
@@ -43,6 +45,7 @@ export function Timeline({ data }: { data: Partial<ChannelData> }) {
       {
         key: "search",
         label: "Search interest",
+        short: "Search",
         unit: "/100",
         color: "var(--series-search)",
         kind: "line",
@@ -51,6 +54,7 @@ export function Timeline({ data }: { data: Partial<ChannelData> }) {
       {
         key: "traffic",
         label: "Website visits",
+        short: "Visits",
         unit: "visits",
         color: "var(--series-traffic)",
         kind: "line",
@@ -59,6 +63,7 @@ export function Timeline({ data }: { data: Partial<ChannelData> }) {
       {
         key: "meta",
         label: "Meta ads launched",
+        short: "Meta ads",
         unit: "ads",
         color: "var(--series-meta)",
         kind: "bar",
@@ -70,6 +75,7 @@ export function Timeline({ data }: { data: Partial<ChannelData> }) {
       {
         key: "google",
         label: "Google ads launched",
+        short: "Google ads",
         unit: "ads",
         color: "var(--series-google)",
         kind: "bar",
@@ -81,6 +87,7 @@ export function Timeline({ data }: { data: Partial<ChannelData> }) {
       {
         key: "podcasts",
         label: "Podcast ad reads",
+        short: "Podcasts",
         unit: "reads",
         color: "var(--series-podcasts)",
         kind: "bar",
@@ -89,6 +96,7 @@ export function Timeline({ data }: { data: Partial<ChannelData> }) {
       {
         key: "ugc",
         label: "Creator post views",
+        short: "Creators",
         unit: "views",
         color: "var(--series-ugc)",
         kind: "bar",
@@ -172,7 +180,7 @@ export function Timeline({ data }: { data: Partial<ChannelData> }) {
             return (
               <g key={l.key}>
                 <text x={0} y={top + 20} className="lane-label">
-                  {l.label}
+                  {W < 600 ? l.short : l.label}
                 </text>
                 <text x={0} y={top + 36} className="lane-sub">
                   peak {compact(max)} {l.unit === "/100" ? "" : l.unit}
