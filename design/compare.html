@@ -1,0 +1,27 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Ad Finder design directions</title>
+<style>
+body{margin:0;font:16px/1.5 system-ui;background:#f4f4f4;color:#1a1a1a}
+header{padding:28px 32px 8px}h1{margin:0 0 6px;font-size:28px}
+.controls{display:flex;gap:8px;flex-wrap:wrap;padding:0 32px 16px}
+.controls button{border:1px solid #ccc;background:#fff;border-radius:999px;padding:6px 14px;font:inherit;cursor:pointer}
+.controls button.on{background:#1a1a1a;color:#fff;border-color:#1a1a1a}
+.cols{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;padding:0 32px 48px;align-items:start}
+.col h2{margin:0 0 4px;font-size:20px}.col p{margin:0 0 12px;color:#555;font-size:14px}
+.col img{width:100%;border:1px solid #ddd;border-radius:8px;background:#fff}
+.col.narrow img{width:60%;}
+</style></head><body>
+<header><h1>Ad Finder: three design directions</h1><p>Same structure and real cached data in each; only the design changes. Dashboard change figures are illustrative.</p></header>
+<div class="controls" id="c"></div>
+<div class="cols" id="cols"></div>
+<script>
+const dirs=[["a","A · Firecrawl family","Firecrawl's own orange, near-white and ink, Geist (the open match for Suisse), a hairline grid. Reads as part of Firecrawl."],
+["b","B · Signal","Dark-first data tool with a dot grid, Inter Tight, pill controls, green for what's live. The category's convention (Foreplay, Atria)."],
+["c","C · Report","A market-research publication: Instrument Serif headlines, ruled sections, square corners, orange as the highlighter. Sets up the Phase 5 report."]];
+let s={page:"landing",theme:"light",w:"1440"};
+const opts=[["page",["landing","dashboard"]],["theme",["light","dark"]],["w",["1440","390"]]];
+function draw(){
+ document.getElementById("c").innerHTML=opts.map(([k,vs])=>vs.map(v=>`<button class="${s[k]===v?"on":""}" onclick="s.${k}='${v}';draw()">${v==="1440"?"Desktop 1440px":v==="390"?"Phone 390px":v}</button>`).join("")).join('<span style="width:12px"></span>');
+ document.getElementById("cols").innerHTML=dirs.map(([d,t,p])=>`<div class="col ${s.w==="390"?"narrow":""}"><h2>${t}</h2><p>${p}</p><img src="shots/shots-${d}-${s.page}-${s.theme}-${s.w}.jpg" alt="${t}"></div>`).join("");
+}
+draw();
+</script></body></html>

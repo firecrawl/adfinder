@@ -1,0 +1,18 @@
+/* A · Firecrawl family: Firecrawl's own palette (#FF4C00 on #F9F9F9, #262626 ink), Geist for Suisse, hairline grid */
+:root{--display:'Geist',system-ui;--body:'Geist',system-ui;--numeric:'Geist',system-ui;--mono:'Geist Mono',monospace;--display-w:600;
+--h1:76px;--h1-track:-0.04em;--h2:40px;--h3:24px;--hero-align:center;--chips-justify:center;
+--r-btn:10px;--r-card:14px;--r-inner:8px;--r-search:12px;
+--accent:#ff4c00;--on-accent:#fff;--btn-shadow:inset 0 -6px 12px rgb(250 29 25 / .2),0 2px 4px rgb(250 93 25 / .12);
+--bg:#f9f9f9;--nav-bg:rgb(249 249 249 / .85);--surface:#fff;--surface-2:#f6f6f6;--line:#ececec;--line-strong:#e0e0e0;
+--text:#262626;--muted:#555;--faint:#6b6b6b;--accent-text:#c23a00;--track:#eee;
+--search-shadow:0 1px 2px rgb(0 0 0 / .04),0 8px 24px rgb(0 0 0 / .04);--shot-shadow:0 30px 60px -30px rgb(0 0 0 / .18);
+--live-bg:#ff4c00;--live-ink:#fff;--up:#1a7f37;--down:#c23a00;--mine-line:#ffc4a8;--mine-shadow:0 0 0 3px #fff1ea}
+:root[data-theme=dark]{--bg:#0d0d0d;--nav-bg:rgb(13 13 13 / .85);--surface:#151515;--surface-2:#1c1c1c;--line:#262626;--line-strong:#333;
+--text:#ededed;--muted:#a8a8a8;--faint:#8c8c8c;--accent-text:#ff7a40;--track:#2a2a2a;--search-shadow:none;--shot-shadow:0 30px 80px -30px rgb(255 76 0 / .18);
+--up:#4ac26b;--down:#ff7a40;--mine-line:#5c2a12;--mine-shadow:0 0 0 3px #1f130c}
+.btn{font-size:19px;font-weight:700}
+.landing{background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);background-size:64px 64px;background-position:center -1px;background-attachment:local}
+.landing main>section:not(.hero){background:var(--bg)}
+.landing .proof,.landing .feature,.landing .topads{position:relative;box-shadow:0 0 0 100vmax var(--bg);clip-path:inset(0 -100vmax)}
+.hero h1{font-feature-settings:"ss01"}
+@media (max-width:900px){:root{--h1:46px;--h2:30px;--h3:21px}}

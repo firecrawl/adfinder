@@ -191,7 +191,7 @@ Decided on 24 Nov:
 
 ### 4a. Design direction (first)
 The current look is a generic search-engine style: Google greys, a wordmark, a search box and chips. Every product in the category commits to an identity and leads with real product data. Research, screenshots and recommendations: `docs/design-research.md`.
-- [ ] **Two or three directions as static mockups**: the landing hero and first screens, and a dashboard screen, in both themes at 390px and 1440px. Use the `site-design` skill's reference-led process
+- [x] **Three directions as static mockups** (`design/`): A Firecrawl family, B Signal (dark data tool), C Report (editorial). Landing and dashboard, both themes, 390px and 1440px, all from real cached data. Compare them in `design/compare.html`; reasoning, type pairings and the recommendation (A, keeping C for the Phase 5 report) in `design/DESIGN.md`
 - [ ] **Pick one** and turn it into tokens (colour, type, spacing, texture) in `src/index.css` before 4c and 4d are built
 - [ ] Carry it to the existing pages (brand page, compare, docs) so the site reads as one product
 

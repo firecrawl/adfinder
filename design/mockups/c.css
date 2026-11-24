@@ -1,0 +1,33 @@
+/* C · Report: a market-research publication. Instrument Serif headlines, Geist text, ruled sections, orange as the highlighter */
+:root{--display:'Instrument Serif',Georgia,serif;--body:'Geist',system-ui;--numeric:'Geist',system-ui;--mono:'Geist Mono',monospace;--display-w:400;
+--h1:96px;--h1-track:-0.02em;--h2:52px;--h3:30px;--hero-align:left;--chips-justify:flex-start;
+--r-btn:4px;--r-card:4px;--r-inner:2px;--r-search:4px;
+--accent:#ff4c00;--on-accent:#fff;--btn-shadow:none;
+--bg:#ffffff;--nav-bg:rgb(255 255 255 / .92);--surface:#fff;--surface-2:#f5f5f4;--line:#e5e5e3;--line-strong:#171717;
+--text:#171717;--muted:#4a4a48;--faint:#686866;--accent-text:#c23a00;--track:#ececea;
+--search-shadow:none;--shot-shadow:none;--live-bg:#171717;--live-ink:#fff;--up:#1a7f37;--down:#c23a00;--mine-line:#171717;--mine-shadow:none}
+:root[data-theme=dark]{--bg:#121211;--nav-bg:rgb(18 18 17 / .92);--surface:#121211;--surface-2:#1c1c1b;--line:#2c2c2a;--line-strong:#e8e8e6;
+--text:#efefed;--muted:#b0b0ad;--faint:#94948f;--accent-text:#ff7a40;--track:#2c2c2a;--live-bg:#efefed;--live-ink:#121211;--up:#5bd17f;--down:#ff7a40;--mine-line:#efefed}
+.btn{font-size:19px;font-weight:700}
+.hero{max-width:none;padding:88px 0 48px;border-bottom:1px solid var(--line-strong)}
+.hero h1{max-width:980px}
+.hero .lede{margin:0 0 32px;max-width:560px}
+.hero .search{margin:0;border-width:1.5px}
+.nav{border-bottom:1px solid var(--line-strong)}
+.shot{margin-top:48px;border-width:1.5px}
+.shot-bar{font-family:var(--body)}
+.score h3{font-style:italic}
+.kpis>div{background:none;border:0;border-top:1.5px solid var(--line-strong);border-radius:0;padding:10px 0 0}
+.kpis strong{font-family:var(--display);font-size:40px;font-weight:400}
+.bcard .kpis strong{font-size:34px}
+.bars i{border-radius:0;height:6px}
+.proof{border-bottom:1px solid var(--line-strong)}
+.feature{border-bottom:1px solid var(--line)}
+.panel{border-width:0;border-left:3px solid var(--accent);padding:0 0 0 24px;border-radius:0}
+.hook q{font-family:var(--display);font-size:22px;color:var(--text)}
+.chip{border-radius:4px}
+.bcard{border-color:var(--line-strong)}
+.bcard.mine{border-width:2px}
+.feed{border-color:var(--line-strong)}
+.filters span{border-radius:3px}
+@media (max-width:900px){:root{--h1:54px;--h2:36px;--h3:24px}.hero{padding-top:48px}.kpis strong{font-size:30px}}
