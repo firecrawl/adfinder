@@ -1,6 +1,6 @@
 # Ad Finder plan
 
-The goal is to make Ad Finder the showcase for Firecrawl Alexandria: every ad behind any business, plus a report on where the brand is heading and what to fix. Work through the phases in order. Each phase ships on its own.
+Ad Finder is becoming a product, not only a showcase for Firecrawl Alexandria: every ad behind any business, a dashboard of the brands you track (your own included), and a report on where each brand is heading and what to fix. Alexandria stays the data source and is credited throughout. Work through the phases in order. Each phase ships on its own.
 
 Status key: `[ ]` todo, `[~]` in progress, `[x]` done.
 
@@ -8,7 +8,7 @@ Status key: `[ ]` todo, `[~]` in progress, `[x]` done.
 - End-to-end in Agent Browser at 390px and 1440px (CLAUDE.md: few tests, mostly end-to-end). Unit tests only for logic a browser can't reach, such as cache-policy selection
 - Cache changes are checked on the KV store itself: `wrangler kv key list --binding CACHE --prefix <prefix>`
 - Before/after numbers come from the analytics in Phase 0
-- Roll back a bad deploy with `wrangler rollback`. D1 migrations (Phase 7) don't roll back, so make them additive only
+- Roll back a bad deploy with `wrangler rollback`. D1 migrations (Phase 4) don't roll back, so make them additive only
 
 ---
 
@@ -27,7 +27,7 @@ Anyone can spend the site's language-model key today.
   - doubles: milliseconds, Firecrawl credits
   - Credits come from `data.creditsCost` on each Firecrawl response, added up by a `Meter` in `worker/alexandria.ts`
   - Query it with the Analytics Engine SQL API, e.g. `SELECT blob2 AS channel, avg(double1) AS ms, sum(double2) AS credits FROM adfinder_events WHERE blob3 = 'miss' GROUP BY channel`
-- [x] **Terms and Privacy page** at `/terms` (`src/pages/TermsPage.tsx`), linked from the footer and the sign-in dialog. It binds visitors to the provider terms (Similarweb's in particular) and says what's stored. Update it in Phase 7 when emails are stored
+- [x] **Terms and Privacy page** at `/terms` (`src/pages/TermsPage.tsx`), linked from the footer and the sign-in dialog. It binds visitors to the provider terms (Similarweb's in particular) and says what's stored. Update it in Phase 4 when accounts and emails are stored
 - [ ] **Ask Firecrawl** (Phase 1 shipped assuming "no" to both; a "yes" to question 1 would allow per-user podcast caching):
   1. Can data fetched with visitor A's key be shown to visitor B, through the site and through `/mcp`?
   2. Can analyses built from Particle or Similarweb data (summary, compare) be cached and shared?
@@ -97,7 +97,15 @@ Still open, with Firecrawl (tracked in Phase 0): Particle's exact attribution wo
 
 ## Phase 2: Speed up the first search
 
-A cached brand loads in about 0.1–0.4s per channel. A brand nobody has searched yet is slow. Measure a cold search before and after with Phase 0's analytics, and write the numbers here.
+A cached brand loads in about 0.1–0.4s per channel. A brand nobody has searched yet is slow. Measure a cold search before and after with Phase 0's analytics and PostHog, and write the numbers here. This comes before the dashboard because every dashboard refresh is a cold search.
+
+- [ ] **PostHog, to see how the site performs for visitors** (Analytics Engine only sees the Worker):
+  - `posthog-js` in the client, EU cloud host, cookieless (`persistence: "memory"`) until there are accounts, so no consent banner is needed yet
+  - Events: `search`, `brand_viewed`, `tab_opened`, `compare_started`, `sign_in_started` / `sign_in_completed`, and `channel_loaded` / `analysis_loaded` with the milliseconds from opening the brand and whether it was cached
+  - Web vitals and page views from autocapture. Session replay off for now
+  - Never send a Firecrawl key or the session cookie; brand names and domains are fine
+  - Funnels to build: home → search → brand viewed → sign in → signed-in search. A dashboard for time to first channel and time to summary, cold vs cached
+  - Update the Privacy page to name PostHog and what it records
 
 - [ ] **Start the analyses without waiting for every channel.** Two changes:
   - Client: `useBrand` (`src/api.ts`) waits for every shared channel before asking for analyses (Phase 1 stopped it waiting on podcasts and traffic); ask straight away
@@ -133,24 +141,52 @@ From screenshots of the live site at 390px wide. This comes before the report, s
 
 ---
 
-## Phase 4: A homepage that shows what it does
+## Phase 4: Accounts, homepage and dashboard
 
-Today the home page is a wordmark, one tagline, a search box and five "Try" chips. A first-time visitor can't see what they'd get before searching, or that most of it is free to browse. Turn it into a landing page, with the search box still first on the screen.
+Signed out, the home page is a landing page that shows what Ad Finder does. Signed in, it's a dashboard of the brands you track. Today the home page is a wordmark, one tagline, a search box and five "Try" chips, and a Firecrawl sign-in lives only in a cookie, so nothing can be saved.
 
-- [ ] **Hero:** the search box stays at the top. Sharpen the tagline and add one line on what's free (the featured brands) and what needs a Firecrawl sign-in
+**Decide first: who pays for dashboard refreshes.** Tracked brands are refreshed without the user there, and each refresh spends Firecrawl credits. Either:
+- store each user's Firecrawl key encrypted (with consent) and refresh on their account, or
+- refresh on a house key with a cap on tracked brands per user (a free tier, with a paid tier later)
+
+### 4a. Accounts
+- [ ] **Sign in with Google or an email link.** Use a library that runs on Workers with D1 (e.g. Better Auth). Email links need an email provider (Resend or Postmark), which 4d's alerts reuse
+- [ ] **Connect Firecrawl** from settings, with the existing Firecrawl sign-in or a pasted key. Searching still runs on the user's own Firecrawl account. Anonymous visitors can still browse the featured brands
+- [ ] **User store (D1), additive migrations only:** users, connected Firecrawl key (encrypted, if 4a's decision needs it), tracked brands, snapshots
+- [ ] **Privacy:** delete-my-account removes the user, their tracked brands, snapshots and stored key. Update the Privacy page, and switch PostHog from cookieless to identified users with consent
+- [ ] Move existing signed-in visitors over: a Firecrawl cookie with no account keeps working until it expires
+
+### 4b. Landing page (signed out)
+- [ ] **Hero:** the search box stays at the top. A sharper tagline and one line on what's free (the featured brands) and what needs an account
 - [ ] **Feature sections, each shown with real data** from a featured brand's shared cache (never podcasts or traffic, which can't be shown to anonymous visitors):
   - Every ad on Meta and Google, with how long each has run
   - Creator posts (UGC), search trends and reviews
   - The AI summary, hook patterns, and complaints matched against ads
   - Compare two businesses
+  - The dashboard and weekly email (4c, 4d)
   - The MCP server and `llms.txt`, for using it from an agent
-- [ ] **Powered by Alexandria:** the providers behind each channel, linking to the Docs page. This is the showcase for Firecrawl, so make it visible, not a footer line
-- [ ] **Featured brands as cards** (logo, ad counts, one line from the summary) instead of bare chips, so they show there's data behind them. Fall back to the chips when the cache is cold
-- [ ] **Recently viewed** stays, below the hero
-- [ ] **Meta tags and share image** for `/`: title, description and an `og:image` of the page (Phase 5b covers per-report images)
-- [ ] Check at 390px and 1440px, in both themes, and keep the first paint fast: the feature sections load cached data after the hero renders
+- [ ] **Data from Firecrawl Alexandria:** the provider behind each channel, linking to the Docs page
+- [ ] **Featured brands as cards** (logo, ad counts, one line from the summary) instead of bare chips. Fall back to the chips when the cache is cold
+- [ ] **Meta tags and share image** for `/`: title, description and an `og:image` (Phase 5b covers per-report images)
 
-**Done when:** a visitor who has never heard of Ad Finder can tell from the home page, without searching, what it shows, where the data comes from, and what's free.
+### 4c. Dashboard (signed in)
+- [ ] **Track a brand** from its page or the dashboard. Mark one as **your brand**; it's pinned first and the comparisons below are against it
+- [ ] **A card per tracked brand:** logo, active ads per channel, ads started and stopped since the last snapshot, newest creator posts, and the summary's headline
+- [ ] **Snapshots:** the refresh stores each tracked brand's shared-cache channels in D1 so changes can be shown. Podcasts and traffic are never stored (provider terms); they load live when the brand is opened
+- [ ] **Thumbnails in R2** for ads in snapshots: Meta's media links expire after about 4 days
+- [ ] **Refresh:** through Cloudflare Queues, one brand per message, on 4a's chosen key. Reuse Phase 2's pre-warm queue
+- [ ] Recently viewed moves here from the home page
+
+### 4d. Weekly email
+- [ ] For each user, what changed for their tracked brands: new ads, ads stopped, new creator posts. Every email has an unsubscribe link
+
+### Not doing
+- Posting or managing ads from Ad Finder. That needs Meta and Google ads API access and app review, ad account connections and billing: a different product
+- Saving ads Ad Finder can't find (a pasted link or screenshot) waits for Phase 7's boards
+
+Check every part at 390px and 1440px, in both themes.
+
+**Done when:** a new user can sign in with Google or email, connect Firecrawl, track their own brand and two competitors, see what changed on the dashboard after the next refresh, and get the weekly email. Signed out, the home page shows what Ad Finder does without a search.
 
 ---
 
@@ -188,13 +224,14 @@ Print:
 
 ### 5c. My brand vs competitors (opt-in)
 - [ ] Enter your brand and up to 3 rivals, get a gap report: where they spend and you don't, and hooks they run that you don't
+- [ ] Signed in, default to the dashboard's "your brand" and tracked competitors (Phase 4c)
 - [ ] It's 3 extra cold searches plus model calls, so show the credit estimate first. The 3 competitors from `Summary.competitors` are guessed by the model, so let the visitor confirm or edit them
 
 ### 5d. MCP
 - [ ] A `get_report` tool that returns the channel data plus whatever analyses are already cached, and says which are missing. MCP never calls the model
 
-### Deferred to after Phase 7
-"Channels they dropped" and "changed since last time" need history, which only exists once snapshots are stored.
+### History
+- [ ] "Channels they dropped" and "changed since last time", for tracked brands only: they need Phase 4's snapshots
 
 **Done when:** a featured brand's report prints cleanly to PDF, and a shared link shows that brand's scorecard as its preview.
 
@@ -219,20 +256,17 @@ All of these are in the catalogue and unused. Before choosing each one's cache p
 
 ---
 
-## Phase 7: Accounts, following and alerts
+## Phase 7: Boards and saved reports
 
-- [ ] **Sign-in:** keep Firecrawl sign-in for searching (each sign-in is a Firecrawl signup, and visitors pay for their own searches). Add Google sign-in for these saved features only
-- [ ] **Decide who pays for alert runs.** Visitors' keys live only in their cookie today. Either store their keys encrypted with explicit consent, or run alerts on a house key with a cap on followed brands
-- [ ] **User store (D1), additive migrations only:** users, followed brands, saved ads, saved reports
-- [ ] **Follow a brand:** a weekly email of new ads, ads stopped and new creator posts. The cron compares with the last stored snapshot of shared-cache channels only; Particle's terms rule out keeping podcast snapshots. Competitors charge $149+/month for this
-- [ ] **Email:** pick a provider (Resend or Postmark). Every email needs an unsubscribe link
-- [ ] **Privacy:** delete-my-account removes the user, their follows and their stored key. Update the Privacy page from Phase 0
-- [ ] **Boards / swipe file:** save ads from any channel into named boards, share a board by link. Meta media links expire after about 4 days, so store thumbnails (R2) for saved ads
-- [ ] **Saved reports:** a saved report regenerates when opened, with a "changed since last time" section (the item deferred from Phase 5)
+Builds on Phase 4's accounts.
+
+- [ ] **Boards / swipe file:** save ads from any channel into named boards, share a board by link. Saved ads' thumbnails go in R2, like Phase 4's snapshots
+- [ ] **Add ads Ad Finder can't find:** a pasted link or an uploaded screenshot, into a board
+- [ ] **Saved reports:** a saved report regenerates when opened, with a "changed since last time" section from Phase 4's snapshots (the item deferred from Phase 5)
 
 ---
 
-## Phase 8: Showcase extras
+## Phase 8: Extras
 
 - [ ] **"How this was built" panel** on each section: the Alexandria provider and capability, the credits used (from Phase 0's analytics), and a copyable `alexandria_library_read` / SDK snippet
 - [ ] **Landing pages:** scrape each ad's destination URL with Firecrawl (screenshot and offer), and track when the offer changes
