@@ -1,19 +1,19 @@
 :root {
   color-scheme: light;
-  --bg: #ffffff;
-  --surface: #f8f9fa;
-  --surface-2: #f1f3f4;
-  --line: #e8eaed;
-  --line-strong: #dadce0;
-  --text: #202124;
-  --text-2: #3c4043;
-  --muted: #5f6368;
-  --faint: #676c71;
-  --link: #1a0dab;
-  --blue: #1a73e8;
-  --fire: #fa5d19;
+  --bg: #fbfbfc;
+  --surface: #f5f6f8;
+  --surface-2: #eef0f3;
+  --line: #e7e8ec;
+  --line-strong: #d8dae0;
+  --text: #0d0e12;
+  --text-2: #2b2f3a;
+  --muted: #4b5060;
+  --faint: #636978;
+  --link: #1d4ed8;
+  --blue: #2563eb;
+  --fire: #ff5a1f;
   --fire-soft: #fff1ea;
-  --good: #188038;
+  --good: #13743a;
   --good-soft: #e6f4ea;
   --bad: #c5221f;
   --bad-soft: #fce8e6;
@@ -26,15 +26,20 @@
   --side-a: #2a78d6;
   --side-b: #eb6834;
   --card: #ffffff;
-  --glass: rgb(255 255 255 / 0.92);
-  --fire-line: #f6d2c0;
+  --glass: rgb(251 251 252 / 0.82);
+  --fire-line: #ffc7ad;
   --fire-ink: #b3410e;
-  /* The accent as text: --fire itself is 3.2:1 on white, below WCAG AA. */
-  --fire-text: #b3410e;
+  /* The accent as text: --fire itself is 3.1:1 on white, below WCAG AA. */
+  --fire-text: #c2410c;
+  /* Text on an orange button: white is 3.1:1 on --fire, this ink is 6.4:1. */
+  --on-fire: #140700;
+  --dot: rgb(13 14 18 / 0.07);
+  --display: "Inter Tight", "Inter", system-ui, sans-serif;
   --neutral-mark: #9aa0a6;
-  --radius: 12px;
-  --shadow: 0 1px 2px rgb(60 64 67 / 0.15), 0 1px 3px 1px rgb(60 64 67 / 0.08);
-  --shadow-lg: 0 4px 8px 3px rgb(60 64 67 / 0.12), 0 1px 3px rgb(60 64 67 / 0.2);
+  --radius: 16px;
+  --shadow: 0 1px 2px rgb(13 14 18 / 0.06), 0 2px 8px rgb(13 14 18 / 0.05);
+  --shadow-lg: 0 20px 50px -20px rgb(13 14 18 / 0.3), 0 2px 6px rgb(13 14 18 / 0.08);
+  --fire-glow: 0 8px 30px -8px rgb(255 90 31 / 0.55);
   font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
   font-feature-settings: "cv11", "ss01";
   color: var(--text);
@@ -42,26 +47,35 @@
   -webkit-font-smoothing: antialiased;
 }
 
+h1,
+h2,
+.wordmark {
+  font-family: var(--display);
+  letter-spacing: -0.02em;
+}
+
 /* index.html resolves "match system" to data-theme before first paint. */
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #131314;
-  --surface: #1e1f20;
-  --surface-2: #2a2b2d;
-  --line: #2e3033;
-  --line-strong: #3c4043;
-  --text: #e8eaed;
-  --text-2: #c9cccf;
-  --muted: #9aa0a6;
-  --faint: #90959a;
-  --link: #8ab4f8;
-  --blue: #8ab4f8;
-  --fire: #fa5d19;
-  --fire-soft: #2d1a12;
-  --fire-line: #5a2f1c;
+  --bg: #09090b;
+  --surface: #16171c;
+  --surface-2: #1d1e24;
+  --line: #23242b;
+  --line-strong: #2f313a;
+  --text: #f4f4f6;
+  --text-2: #d4d6dd;
+  --muted: #a3a7b3;
+  --faint: #8b8f9c;
+  --link: #93b4ff;
+  --blue: #6b9bff;
+  --fire: #ff5a1f;
+  --fire-soft: #2a1408;
+  --fire-line: #5c2a12;
   --fire-ink: #ffb08a;
-  --fire-text: #fa5d19;
-  --good: #6dd58c;
+  --fire-text: #ff7a45;
+  --dot: rgb(255 255 255 / 0.06);
+  --fire-glow: 0 0 0 1px rgb(255 255 255 / 0.06), 0 8px 30px -8px rgb(255 90 31 / 0.55);
+  --good: #4ade80;
   --good-soft: #15291c;
   --bad: #f28b82;
   --bad-soft: #351b19;
@@ -73,11 +87,11 @@
   --series-traffic: #008300;
   --side-a: #3987e5;
   --side-b: #d95926;
-  --card: #1b1c1d;
-  --glass: rgb(19 19 20 / 0.9);
+  --card: #121216;
+  --glass: rgb(9 9 11 / 0.78);
   --neutral-mark: #5f6368;
-  --shadow: 0 1px 2px rgb(0 0 0 / 0.5), 0 1px 3px 1px rgb(0 0 0 / 0.3);
-  --shadow-lg: 0 4px 12px 3px rgb(0 0 0 / 0.5), 0 1px 3px rgb(0 0 0 / 0.4);
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.5);
+  --shadow-lg: 0 30px 80px -30px rgb(255 90 31 / 0.25), 0 2px 8px rgb(0 0 0 / 0.5);
 }
 
 
@@ -87,7 +101,7 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background: var(--bg);
+  background: var(--bg) radial-gradient(var(--dot) 1px, transparent 1.2px) 0 0 / 22px 22px;
 }
 button {
   font: inherit;
@@ -193,6 +207,9 @@ p {
 }
 .btn.fire {
   background: var(--fire);
+  color: var(--on-fire);
+  font-weight: 600;
+  box-shadow: var(--fire-glow);
 }
 .btn.ghost {
   background: var(--surface);
@@ -251,7 +268,7 @@ p {
   height: 26px;
   border-radius: 50%;
   background: var(--fire);
-  color: #fff;
+  color: var(--on-fire);
   display: grid;
   place-items: center;
   font-size: 12px;
@@ -516,7 +533,7 @@ p {
 .search .go {
   border: 0;
   background: var(--fire);
-  color: #fff;
+  color: var(--on-fire);
   width: 36px;
   height: 36px;
   border-radius: 50%;
