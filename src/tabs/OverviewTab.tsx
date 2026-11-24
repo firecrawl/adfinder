@@ -187,7 +187,7 @@ export function OverviewTab({
       <Loaded load={state.hooks} skeleton={<div className="skeleton" style={{ height: 220 }} />}>
         {(h) => <Patterns data={h} />}
       </Loaded>
-      {state.complaints?.status !== "error" && (
+      {state.complaints.status !== "error" && (
         <>
           <div style={{ height: 22 }} />
           <Loaded

@@ -1,10 +1,13 @@
-import { ChevronDown, Globe, GitCompareArrows, RefreshCw } from "lucide-react";
+import { Check, ChevronDown, Globe, GitCompareArrows, Lock, RefreshCw, X } from "lucide-react";
 import { useEffect, useEffectEvent, useState, type ReactNode } from "react";
+import { CACHE_POLICY, CHANNEL_INFO, CHANNEL_LIST } from "../../shared/channels";
 import type { Brand, Channel } from "../../shared/types";
+import { track } from "../analytics";
 import { api, useBrand, type BrandState } from "../api";
 import { Empty, SignInPrompt } from "../components/ui";
 import { COUNTRIES, logo } from "../format";
 import { remember } from "../recent";
+import { useSession } from "../session";
 import { CreatorsTab } from "../tabs/CreatorsTab";
 import { GoogleTab } from "../tabs/GoogleTab";
 import { MetaTab } from "../tabs/MetaTab";
@@ -91,7 +94,10 @@ function BrandView({
   onRefresh,
 }: BrandPageProps) {
   const state = useBrand(brand, epoch);
-  useEffect(() => remember(brand), [brand]);
+  useEffect(() => {
+    remember(brand);
+    track("brand_viewed", { brand: brand.domain || brand.name, country: brand.country ?? "" });
+  }, [brand]);
   const tabs: [Tab, string, Channel | null][] = [
     ["overview", "Overview", null],
     ["meta", "Meta ads", "meta"],
@@ -120,7 +126,7 @@ function BrandView({
                 {brand.domain}
               </a>
             )}
-            {state.summary?.status === "ok" && state.summary.data.industry ? (
+            {state.summary.status === "ok" && state.summary.data.industry ? (
               <span className="industry">{state.summary.data.industry}</span>
             ) : (
               <span>Ads, sponsorships & creators</span>
@@ -173,7 +179,48 @@ function BrandView({
           );
         })}
       </div>
+      <Progress state={state} />
       {body[tab]()}
     </main>
+  );
+}
+
+// Each channel's provider and progress while a brand loads, and what an uncached search costs.
+function Progress({ state }: { state: BrandState }) {
+  const { me } = useSession();
+  if (!CHANNEL_LIST.some((ch) => state[ch].status === "loading")) return null;
+  const uncached = state.cached ? CHANNEL_LIST.filter((ch) => !state.cached!.includes(ch)) : [];
+  const credits = uncached.reduce((n, ch) => n + CHANNEL_INFO[ch].credits, 0);
+  const firstSearch = uncached.some((ch) => CACHE_POLICY[ch] === "shared");
+  return (
+    <div className="progress" aria-live="polite">
+      <ul>
+        {CHANNEL_LIST.map((ch) => {
+          const l = state[ch];
+          return (
+            <li key={ch} className={l.status}>
+              {l.status === "loading" ? (
+                <span className="spin" />
+              ) : l.status === "ok" ? (
+                <Check size={14} aria-label="loaded" />
+              ) : l.auth === "missing" ? (
+                <Lock size={14} aria-label="needs sign-in" />
+              ) : (
+                <X size={14} aria-label="failed" />
+              )}
+              {CHANNEL_INFO[ch].label}
+              <small>{CHANNEL_INFO[ch].provider}</small>
+            </li>
+          );
+        })}
+      </ul>
+      {me?.connected && credits > 0 && (
+        <p>
+          {firstSearch
+            ? `Nobody has searched this brand yet. About ${credits.toLocaleString()} credits from your Firecrawl account.`
+            : `Podcasts and traffic load fresh on every visit: about ${credits.toLocaleString()} credits from your Firecrawl account.`}
+        </p>
+      )}
+    </div>
   );
 }

@@ -21,7 +21,7 @@ const FIRECRAWL = "https://api.firecrawl.dev/v2";
 // Adds up the Firecrawl credits a job spends, and the time it spent waiting out rate limits, for the
 // analytics events.
 export type Meter = { credits: number; waitedMs: number };
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 async function post(
   key: string,

@@ -4,7 +4,7 @@ export function TermsPage() {
       <div className="docs-hero">
         <span className="eyebrow">Terms & privacy</span>
         <h1>Using Ad Finder</h1>
-        <p>Last updated 23 November 2026.</p>
+        <p>Last updated 24 November 2026.</p>
       </div>
       <div className="prose-sm">
         <h2>What Ad Finder is</h2>
@@ -70,6 +70,13 @@ export function TermsPage() {
           <b>Usage events</b>: which channel or analysis ran, for which brand, whether it came from
           the cache, how long it took and how many credits it used. They contain no API keys, names,
           emails or IP addresses.
+        </p>
+        <p>
+          <b>Site analytics</b> go to PostHog (EU servers): pages viewed, the brands searched,
+          which tabs are opened, sign-in started or finished, how long each channel and analysis
+          took to load, and page-speed measurements. PostHog keeps nothing in your browser (no
+          cookies or local storage), so a visit can't be linked to your next one. It never receives
+          your API key or anything typed into the sign-in form, and sessions aren't recorded.
         </p>
         <p>
           <b>Recently viewed brands</b> are kept in your browser's local storage only.

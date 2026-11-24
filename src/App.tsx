@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Brand } from "../shared/types";
+import { track } from "./analytics";
 import { clearMemo, useMe } from "./api";
 import { AccountButton, SignInModal } from "./components/Account";
 import { SearchBox } from "./components/SearchBox";
@@ -82,12 +83,26 @@ export default function App() {
     setEpoch((e) => e + 1);
   }, [refresh]);
   const session = useMemo(
-    () => ({ me, refresh: reload, openSignIn: (m: "signin" | "key" = "signin") => setSignIn(m) }),
+    () => ({
+      me,
+      refresh: reload,
+      openSignIn: (m: "signin" | "key" = "signin") => {
+        track("sign_in_started", { mode: m });
+        setSignIn(m);
+      },
+    }),
     [me, reload],
   );
   const closeSignIn = useCallback(() => setSignIn(null), []);
 
-  const search = (b: Brand) => go({ page: "brand", brand: b, tab: "overview" });
+  const search = (b: Brand) => {
+    track("search", { brand: b.domain || b.name });
+    go({ page: "brand", brand: b, tab: "overview" });
+  };
+  const compare = (a: Brand, b: Brand) => {
+    track("compare_started", { a: a.domain || a.name, b: b.domain || b.name });
+    go({ page: "compare", a, b });
+  };
   const home = route.page === "home";
 
   return (
@@ -126,7 +141,7 @@ export default function App() {
           key={String(route.compare)}
           startCompare={route.compare}
           onSearch={search}
-          onCompare={(a, b) => go({ page: "compare", a, b })}
+          onCompare={compare}
         />
       )}
       {route.page === "brand" && (
@@ -134,11 +149,12 @@ export default function App() {
           brand={route.brand}
           tab={route.tab}
           epoch={epoch}
-          onTab={(tab) => go({ ...route, tab }, true)}
+          onTab={(tab) => {
+            track("tab_opened", { tab });
+            go({ ...route, tab }, true);
+          }}
           onCompare={() => go({ page: "home", compare: true })}
-          onCompareWith={(b) =>
-            go({ page: "compare", a: { name: route.brand.name, domain: route.brand.domain }, b })
-          }
+          onCompareWith={(b) => compare({ name: route.brand.name, domain: route.brand.domain }, b)}
           onCountry={(country) => go({ ...route, brand: { ...route.brand, country } }, true)}
           onRefresh={() => {
             clearMemo();

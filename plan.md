@@ -114,33 +114,36 @@ Before, from the 5 featured brands filled cold on 23 Nov (Analytics Engine, miss
 
 So a cold brand shows Google in under a second, but its summary waits for the slowest channel, usually Meta or reviews: about 30–90s.
 
-- [ ] **PostHog, to see how the site performs for visitors** (Analytics Engine only sees the Worker):
-  - `posthog-js` in the client, EU cloud host, cookieless (`persistence: "memory"`) until there are accounts, so no consent banner is needed yet
-  - Events: `search`, `brand_viewed`, `tab_opened`, `compare_started`, `sign_in_started` / `sign_in_completed`, and `channel_loaded` / `analysis_loaded` with the milliseconds from opening the brand and whether it was cached
-  - Web vitals and page views from autocapture. Session replay off for now
-  - Never send a Firecrawl key or the session cookie; brand names and domains are fine
-  - Funnels to build: home → search → brand viewed → sign in → signed-in search. A dashboard for time to first channel and time to summary, cold vs cached
-  - Update the Privacy page to name PostHog and what it records
-
-- [ ] **Start the analyses without waiting for every channel.** Two changes:
-  - Client: `useBrand` (`src/api.ts`) waits for every shared channel before asking for analyses (Phase 1 stopped it waiting on podcasts and traffic); ask straight away
-  - Server: give `everything()` a deadline (about 25s) and analyse what has arrived
-  - Cache partial analyses for a short time only, or key them by the set of channels they used, so a partial summary isn't kept for 3 days
 - [x] **Find where cold time goes.** Timed each call on 24 Nov. The providers answer in about 1–4s each; the long waits are Upspring rate-limiting `ads/browse` (one call waited 42 of its 44s when browse ran again within about a minute). Other lookups that run alongside Meta finished in under a second. The limit isn't documented in the catalogue
   - Each lookup now records its rate-limit wait (`Meter.waitedMs`, Analytics Engine double3), to see how often this happens in production
   - `advertisers/by-domain` (one call for the advertiser and its brief) doesn't help: for AG1 it waited 20s and still answered `pending` with no advertiser id
 - [x] **Meta Ad Library fallback:** no scrolling and no `waitFor`. Results are read from JSON embedded in the first response, so scrolling never added ads (29 either way for Gymshark) and cost 11s; a fresh search now takes about 14s instead of 27s
-- [ ] **Show Meta's brief before its ads.** The brief returns in about 1s while a rate-limited browse can take 40s+. Split the channel or stream it, so the Meta tab and the analyses don't wait on the browse
-- [ ] **Space out the house key's browse calls** in the cron and pre-warm queue, so refreshes don't rate-limit each other
 - [x] **Calls that run one after another:** Meta's domain and name searches now run together (both always ran), and BBB's two candidate profiles are checked together. Podcasts already run shows, segments and timeseries in parallel after the sponsor lookup
-- [ ] **Pre-warm popular brands:**
-  - Count searches in Analytics Engine, not a KV read-modify-write, which races
-  - Refresh the top 50 through Cloudflare Queues, one brand per message, shared-cache channels only. A single cron run can't fit 50 brands
-- [ ] **Loading checklist:** "Meta ✓ · Google ✓ · Podcasts…", naming the Alexandria provider for each
-- [ ] **Credit estimate before a cold search:** "about N credits, from your Firecrawl account"
+- [x] **Start the analyses without waiting for every channel:**
+  - Client: `useBrand` asks for the analyses as the page opens
+  - Server: `everything()` stops waiting after 25s (`ANALYSIS_DEADLINE`) and analyses what has arrived, unless nothing has. Slow channels carry on in their own `Research` objects and are cached when done. The cron and stale refreshes still wait for everything
+  - An analysis made that way is marked `partial`, returned but never cached. Once every channel has arrived the page asks again and gets the full one, which is cached as usual
+  - Checked locally with the deadline at 3s: a partial summary in 5.7s while reviews took 12.9s, nothing cached; the next request built and cached the full one
+- [x] **Space out the house key's browse calls:** the featured-brands cron waits 60s between brands (about 4 more minutes per run, well inside the 15-minute cron limit)
+- [x] **Loading checklist** under the tabs while anything loads: each channel with its Alexandria provider and a tick, spinner, lock (sign in) or cross. Providers and credit costs live in `CHANNEL_INFO` (`shared/channels.ts`)
+- [x] **Credit estimate:** signed-in visitors see what the load costs from their Firecrawl account, using `/api/cached` (which shared channels are already cached) and catalogue prices. A first search for a brand is about 780 credits; a cached brand still costs about 370, because podcasts (100) and traffic (6 months × 45) are fetched fresh on every visit
+  - Shown as the search starts rather than as a confirmation before it: a confirm step would add a click to every search. Revisit if PostHog shows people leaving on cold searches
+- [x] **PostHog** (`src/analytics.ts`), loaded after the page and only when `VITE_POSTHOG_KEY` is set at build time:
+  - EU host, memory persistence (no cookies or local storage), no person profiles, no click autocapture, no session recording. Page views and web vitals
+  - Events: `search`, `brand_viewed`, `tab_opened`, `compare_started`, `sign_in_started` / `sign_in_completed`, `channel_loaded` (ms, cached, ok), `analysis_loaded` (ms, partial, ok). Never a key, a cookie or sign-in form input
+  - The Privacy page names PostHog and what it records
+- [ ] **PostHog setup (needs your account):**
+  - Create an EU project and put its key in `.env` as `VITE_POSTHOG_KEY` before `bun run deploy`
+  - Turn on "Discard client IP data" in the project settings
+  - Build the funnel (home → search → brand viewed → sign in started → sign in completed) and a dashboard of `channel_loaded` and `analysis_loaded` ms, cached vs not
+- [ ] Dropped: **show Meta's brief before its ads.** The browse rate limit mostly hits when one account looks up several brands within a minute (the cron, a comparison). The analysis deadline already stops it holding up the summary, and splitting the channel would change its cache entry, the MCP output and the Meta tab. Revisit if double3 shows visitors waiting often
+- [ ] Dropped: **pre-warm the 50 most searched brands.** Since Phase 1, any brand opened at least every 3 days stays warm through stale-while-revalidate, which is exactly the popular ones. A queue would mostly refresh brands nobody is looking at, at about 400 credits each on the house key
 - [ ] Dropped: starting channels in parallel with `/api/resolve`. Cache keys use `domain || name`, so a name-only run and the later domain run would pay twice, and podcasts and UGC match on the domain. Resolve also only runs for free-typed names
 
 **Done when:** a new brand shows its first channel in under 5s and the summary in under 30s.
+- First channel: Google answers in under a second cold (0.8s average before these changes)
+- Summary: at most 25s of waiting plus the model (3.6s average), so about 29s even when Meta is rate-limited
+- To confirm after deploying: `channel_loaded` and `analysis_loaded` in PostHog, and `avg(double1)` per channel in Analytics Engine against the table above
 
 ---
 
@@ -194,7 +197,7 @@ Signed out, the home page is a landing page that shows what Ad Finder does. Sign
 - [ ] **A card per tracked brand:** logo, active ads per channel, ads started and stopped since the last snapshot, newest creator posts, and the summary's headline
 - [ ] **Snapshots:** the refresh stores each tracked brand's shared-cache channels in D1 so changes can be shown. Podcasts and traffic are never stored (provider terms); they load live when the brand is opened
 - [ ] **Thumbnails in R2** for ads in snapshots: Meta's media links expire after about 4 days
-- [ ] **Refresh:** through Cloudflare Queues, one brand per message, on 4a's chosen key. Reuse Phase 2's pre-warm queue
+- [ ] **Refresh:** through Cloudflare Queues, one brand per message, on 4a's chosen key, spaced out so Upspring's `ads/browse` limit isn't hit (Phase 2)
 - [ ] Recently viewed moves here from the home page
 
 ### 4d. Weekly email

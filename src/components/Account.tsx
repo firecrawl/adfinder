@@ -1,5 +1,6 @@
 import { ChevronDown, ExternalLink, LogOut } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { track } from "../analytics";
 import { api, signInUrl } from "../api";
 import { compact, timeAgo } from "../format";
 import { useRecent, visitId, visitTitle, type Visit } from "../recent";
@@ -137,6 +138,7 @@ export function SignInModal({ mode, onClose }: { mode: "signin" | "key"; onClose
           code_verifier: verifier,
         }).catch(() => null);
         if (r?.status === "complete" && !cancelled) {
+          track("sign_in_completed", { mode: "signin" });
           await refresh();
           onClose();
           return;
@@ -152,6 +154,7 @@ export function SignInModal({ mode, onClose }: { mode: "signin" | "key"; onClose
     setErr("");
     try {
       await api("/api/auth/key", { apiKey: key.trim() });
+      track("sign_in_completed", { mode: "key" });
       await refresh();
       onClose();
     } catch (e) {
