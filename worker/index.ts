@@ -612,7 +612,7 @@ app.all("/mcp", (c) => {
 // ---------- language model ----------
 // A visitor's analysis stops waiting for slow channels after this long and works from what has arrived.
 // The slow ones carry on in their own Research objects and are cached when they finish.
-const ANALYSIS_DEADLINE = 25_000;
+const ANALYSIS_DEADLINE = 20_000;
 
 // Analyses are cached and shared, so they're built only from channels that may be shared.
 async function everything(
