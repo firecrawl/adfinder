@@ -1,5 +1,14 @@
 {
   "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
-  "ignorePatterns": ["**/.harness/**"],
-  "ignoreDependencies": ["tsrs", "oxlint", "oxlint-tsgolint", "oxfmt", "fallow"]
+  "ignorePatterns": [
+    "**/.harness/**",
+    "design/**"
+  ],
+  "ignoreDependencies": [
+    "tsrs",
+    "oxlint",
+    "oxlint-tsgolint",
+    "oxfmt",
+    "fallow"
+  ]
 }

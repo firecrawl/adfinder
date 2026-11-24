@@ -191,9 +191,10 @@ Decided on 24 Nov:
 
 ### 4a. Design direction (first)
 The current look is a generic search-engine style: Google greys, a wordmark, a search box and chips. Every product in the category commits to an identity and leads with real product data. Research, screenshots and recommendations: `docs/design-research.md`.
-- [ ] **Two or three directions as static mockups**: the landing hero and first screens, and a dashboard screen, in both themes at 390px and 1440px. Use the `site-design` skill's reference-led process
-- [ ] **Pick one** and turn it into tokens (colour, type, spacing, texture) in `src/index.css` before 4c and 4d are built
-- [ ] Carry it to the existing pages (brand page, compare, docs) so the site reads as one product
+- [x] **Three directions as static mockups** (`design/`): A Firecrawl family, B Signal (dark data tool), C Report (editorial). Landing and dashboard, both themes, 390px and 1440px, all from real cached data. Compare them in `design/compare.html`; reasoning, type pairings and the recommendation (A, keeping C for the Phase 5 report) in `design/DESIGN.md`
+- [x] **Picked B · Signal** (24 Nov). Its tokens are in `src/index.css`: near-black `#09090B` / near-white `#FBFBFC` with a 22px dot grid, Inter Tight headings over Inter, orange `#FF5A1F` with dark ink `#140700` on orange buttons (6.4:1; white was 3.1:1) and an orange glow, 16px cards. Every text colour checked at 4.5:1 or more in both themes
+- [x] **Hero photo:** round 2's C, two colleagues at the Ad Finder dashboard, with the real dashboard composited onto the screen (`design/mockups/hero/r2-pair-final.jpg`; how it was made in `design/hero-prompts.md`). Decided to keep the real brands on screen
+- [x] Carried to the existing pages through the shared tokens: home, brand page (every tab), compare and docs, checked at 1440px and 390px in both themes. The home page keeps its current layout until 4c rebuilds it
 
 ### 4b. Accounts
 - [ ] **Sign in with Google or an email link.** Use a library that runs on Workers with D1 (e.g. Better Auth). Email links go through Resend (decided 24 Nov), which 4e's weekly email reuses
