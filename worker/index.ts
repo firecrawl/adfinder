@@ -257,7 +257,7 @@ app.post("/api/resolve", async (c) => {
   }
   const key = await apiKey(c);
   if (!key) throw new ApiError(SIGN_IN.channel, 401);
-  const meter = { credits: 0 };
+  const meter = { credits: 0, waitedMs: 0 };
   const found = await officialSite(key, name, meter).catch((e: unknown) => {
     track(c.env, event, "error", started, meter);
     throw e;
@@ -389,7 +389,7 @@ async function run(
 
 async function compute(env: Env, job: Job, key: string, refresh = false): Promise<unknown> {
   const started = Date.now();
-  const meter = { credits: 0 };
+  const meter = { credits: 0, waitedMs: 0 };
   try {
     const value = await run(env, job, key, meter, refresh);
     track(env, eventOf(job), "miss", started, meter);
@@ -400,8 +400,9 @@ async function compute(env: Env, job: Job, key: string, refresh = false): Promis
   }
 }
 
-// One Analytics Engine row per lookup: blobs are kind, name, outcome and brand; doubles are milliseconds
-// and Firecrawl credits. Analyses report 0 credits because their channel lookups are counted separately.
+// One Analytics Engine row per lookup: blobs are kind, name, outcome and brand; doubles are milliseconds,
+// Firecrawl credits, and milliseconds spent waiting out rate limits (summed across parallel calls, so it
+// can exceed the first). Analyses report 0 for both because their channel lookups are counted separately.
 type Event = { kind: string; name: string; brand: string };
 const eventOf = (job: Job): Event =>
   job.kind === "channel"
@@ -419,7 +420,7 @@ function track(
   env.EVENTS?.writeDataPoint({
     indexes: [e.name],
     blobs: [e.kind, e.name, outcome, e.brand],
-    doubles: [Date.now() - started, meter?.credits ?? 0],
+    doubles: [Date.now() - started, meter?.credits ?? 0, meter?.waitedMs ?? 0],
   });
 }
 

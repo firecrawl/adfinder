@@ -26,7 +26,8 @@ Anyone can spend the site's language-model key today.
   - blobs: kind, name, outcome (`hit`/`miss`/`error`), brand
   - doubles: milliseconds, Firecrawl credits
   - Credits come from `data.creditsCost` on each Firecrawl response, added up by a `Meter` in `worker/alexandria.ts`
-  - Query it with the Analytics Engine SQL API, e.g. `SELECT blob2 AS channel, avg(double1) AS ms, sum(double2) AS credits FROM adfinder_events WHERE blob3 = 'miss' GROUP BY channel`
+  - double3 (from Phase 2): milliseconds spent waiting out rate limits, summed across a lookup's parallel calls
+  - Query it with the Analytics Engine SQL API (`wrangler auth token` works as the bearer token), e.g. `SELECT blob2 AS channel, avg(double1) AS ms, sum(double2) AS credits, avg(double3) AS waited FROM adfinder_events WHERE blob3 = 'miss' GROUP BY channel`
 - [x] **Terms and Privacy page** at `/terms` (`src/pages/TermsPage.tsx`), linked from the footer and the sign-in dialog. It binds visitors to the provider terms (Similarweb's in particular) and says what's stored. Update it in Phase 4 when accounts and emails are stored
 - [ ] **Ask Firecrawl** (Phase 1 shipped assuming "no" to both; a "yes" to question 1 would allow per-user podcast caching):
   1. Can data fetched with visitor A's key be shown to visitor B, through the site and through `/mcp`?
@@ -125,8 +126,13 @@ So a cold brand shows Google in under a second, but its summary waits for the sl
   - Client: `useBrand` (`src/api.ts`) waits for every shared channel before asking for analyses (Phase 1 stopped it waiting on podcasts and traffic); ask straight away
   - Server: give `everything()` a deadline (about 25s) and analyse what has arrived
   - Cache partial analyses for a short time only, or key them by the set of channels they used, so a partial summary isn't kept for 3 days
-- [ ] **Meta Ad Library fallback:** try 2 scrolls instead of 4 (`worker/alexandria.ts` `html`), and cap retries. 4 retries × 90s can take about 6 minutes
-- [ ] **Calls that run one after another:** Meta (search → brief → browse) and podcasts (sponsors → shows, segments, timeseries). Run in parallel what doesn't need an earlier result
+- [x] **Find where cold time goes.** Timed each call on 24 Nov. The providers answer in about 1–4s each; the long waits are Upspring rate-limiting `ads/browse` (one call waited 42 of its 44s when browse ran again within about a minute). Other lookups that run alongside Meta finished in under a second. The limit isn't documented in the catalogue
+  - Each lookup now records its rate-limit wait (`Meter.waitedMs`, Analytics Engine double3), to see how often this happens in production
+  - `advertisers/by-domain` (one call for the advertiser and its brief) doesn't help: for AG1 it waited 20s and still answered `pending` with no advertiser id
+- [x] **Meta Ad Library fallback:** no scrolling and no `waitFor`. Results are read from JSON embedded in the first response, so scrolling never added ads (29 either way for Gymshark) and cost 11s; a fresh search now takes about 14s instead of 27s
+- [ ] **Show Meta's brief before its ads.** The brief returns in about 1s while a rate-limited browse can take 40s+. Split the channel or stream it, so the Meta tab and the analyses don't wait on the browse
+- [ ] **Space out the house key's browse calls** in the cron and pre-warm queue, so refreshes don't rate-limit each other
+- [x] **Calls that run one after another:** Meta's domain and name searches now run together (both always ran), and BBB's two candidate profiles are checked together. Podcasts already run shows, segments and timeseries in parallel after the sponsor lookup
 - [ ] **Pre-warm popular brands:**
   - Count searches in Analytics Engine, not a KV read-modify-write, which races
   - Refresh the top 50 through Cloudflare Queues, one brand per message, shared-cache channels only. A single cron run can't fit 50 brands

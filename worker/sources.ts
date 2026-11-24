@@ -91,10 +91,12 @@ async function meta(alex: Alexandria, brand: Brand): Promise<MetaData> {
   if (brand.country && brand.country !== "US") return metaLibrary(alex, brand);
   const search = (opts: Record<string, unknown>) =>
     alex("upspring", "advertisers/search", { limit: 10, ...opts }).then((r) => r.data ?? []);
-  const found = [
-    ...(brand.domain ? await search({ domain: root(brand.domain) }) : []),
-    ...(await search({ name: brand.name })),
-  ];
+  const found = (
+    await Promise.all([
+      brand.domain ? search({ domain: root(brand.domain) }) : [],
+      search({ name: brand.name }),
+    ])
+  ).flat();
   const adv = found.find((a: any) => sameBrand(brand, a.name, a.domain));
   if (!adv) return metaLibrary(alex, brand);
 
@@ -232,7 +234,8 @@ async function metaLibrary(alex: Alexandria, brand: Brand): Promise<MetaData> {
       active,
       startedAt,
       strength: null,
-      video: video.video_hd_url ?? video.video_sd_url ?? card.video_hd_url ?? card.video_sd_url ?? null,
+      video:
+        video.video_hd_url ?? video.video_sd_url ?? card.video_hd_url ?? card.video_sd_url ?? null,
       thumb:
         image.resized_image_url ??
         image.original_image_url ??
@@ -418,7 +421,8 @@ async function ugc(alex: Alexandria, brand: Brand): Promise<UgcData> {
           : p.profileUrl),
       paid: PAID.test(caption),
       own: norm(p.profileHandle ?? "").startsWith(slug),
-      language: (p.captionLanguage ?? p.transcriptLanguage ?? null)?.slice(0, 2).toLowerCase() ?? null,
+      language:
+        (p.captionLanguage ?? p.transcriptLanguage ?? null)?.slice(0, 2).toLowerCase() ?? null,
     };
   });
   // A caption search for a common word ("Factor") matches unrelated posts, so keep only ones that tag the brand.
@@ -493,7 +497,11 @@ async function traffic(alex: Alexandria, brand: Brand): Promise<TrafficData> {
 
 async function appReviews(alex: Alexandria, brand: Brand) {
   const country = (brand.country || "us").toLowerCase();
-  const found = await alex("apps-apple-com", "apps/search", { term: brand.name, country, limit: 5 });
+  const found = await alex("apps-apple-com", "apps/search", {
+    term: brand.name,
+    country,
+    limit: 5,
+  });
   const app = (found.apps ?? []).find(
     (a: any) => sameBrand(brand, a.name) || sameBrand(brand, a.developer?.name ?? ""),
   );
@@ -550,19 +558,21 @@ async function bbbReviews(alex: Alexandria, brand: Brand) {
   const country = brand.country === "CA" ? "ca" : "us";
   const found = await alex(BBB, "businesses/search", { query: brand.name, country });
   // Names collide ("Factor Property Management"), so the profile's website has to be the brand's.
-  let hit: any = null;
-  for (const r of (found.results ?? []).filter((r: any) => sameBrand(brand, r.name)).slice(0, 2)) {
-    const profile = await alex(BBB, "businesses/profile", {
-      bbb_id: r.bbb_id,
-      business_id: r.business_id,
-      country,
-    }).catch(() => null);
-    const sites = [profile?.website, ...(profile?.additional_websites ?? [])].filter(Boolean);
-    if (sites.some((w: string) => root(w) === root(brand.domain))) {
-      hit = r;
-      break;
-    }
-  }
+  const candidates = (found.results ?? []).filter((r: any) => sameBrand(brand, r.name)).slice(0, 2);
+  const profiles = await Promise.all(
+    candidates.map((r: any) =>
+      alex(BBB, "businesses/profile", {
+        bbb_id: r.bbb_id,
+        business_id: r.business_id,
+        country,
+      }).catch(() => null),
+    ),
+  );
+  const hit = candidates.find((_: any, i: number) =>
+    [profiles[i]?.website, ...(profiles[i]?.additional_websites ?? [])]
+      .filter(Boolean)
+      .some((w: string) => root(w) === root(brand.domain)),
+  );
   if (!hit) return null;
   const id = { bbb_id: hit.bbb_id, business_id: hit.business_id, country };
   const [first, reviews] = await Promise.all([
