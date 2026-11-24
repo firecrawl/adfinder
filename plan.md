@@ -132,10 +132,6 @@ So a cold brand shows Google in under a second, but its summary waits for the sl
   - EU host, memory persistence (no cookies or local storage), no person profiles, no click autocapture, no session recording. Page views and web vitals
   - Events: `search`, `brand_viewed`, `tab_opened`, `compare_started`, `sign_in_started` / `sign_in_completed`, `channel_loaded` (ms, cached, ok), `analysis_loaded` (ms, partial, ok). Never a key, a cookie or sign-in form input
   - The Privacy page names PostHog and what it records
-- [ ] **PostHog setup (needs your account):**
-  - Create an EU project and put its key in `.env` as `VITE_POSTHOG_KEY` before `bun run deploy`
-  - Turn on "Discard client IP data" in the project settings
-  - Build the funnel (home → search → brand viewed → sign in started → sign in completed) and a dashboard of `channel_loaded` and `analysis_loaded` ms, cached vs not
 - [ ] Dropped: **show Meta's brief before its ads.** The browse rate limit mostly hits when one account looks up several brands within a minute (the cron, a comparison). The analysis deadline already stops it holding up the summary, and splitting the channel would change its cache entry, the MCP output and the Meta tab. Revisit if double3 shows visitors waiting often
 - [ ] Dropped: **pre-warm the 50 most searched brands.** Since Phase 1, any brand opened at least every 3 days stays warm through stale-while-revalidate, which is exactly the popular ones. A queue would mostly refresh brands nobody is looking at, at about 400 credits each on the house key
 - [ ] Dropped: starting channels in parallel with `/api/resolve`. Cache keys use `domain || name`, so a name-only run and the later domain run would pay twice, and podcasts and UGC match on the domain. Resolve also only runs for free-typed names
@@ -143,7 +139,7 @@ So a cold brand shows Google in under a second, but its summary waits for the sl
 **Done when:** a new brand shows its first channel in under 5s and the summary in under 30s.
 - First channel: Google answers in under a second cold (0.8s average before these changes)
 - Summary: at most 25s of waiting plus the model (3.6s average), so about 29s even when Meta is rate-limited
-- To confirm after deploying: `channel_loaded` and `analysis_loaded` in PostHog, and `avg(double1)` per channel in Analytics Engine against the table above
+- To confirm after deploying: `avg(double1)` and `avg(double3)` per channel in Analytics Engine against the table above (PostHog's timings come with Phase 4)
 
 ---
 
@@ -177,6 +173,10 @@ Signed out, the home page is a landing page that shows what Ad Finder does. Sign
 - [ ] **Connect Firecrawl** from settings, with the existing Firecrawl sign-in or a pasted key. Searching still runs on the user's own Firecrawl account. Anonymous visitors can still browse the featured brands
 - [ ] **User store (D1), additive migrations only:** users, connected Firecrawl key (encrypted, if 4a's decision needs it), tracked brands, snapshots
 - [ ] **Privacy:** delete-my-account removes the user, their tracked brands, snapshots and stored key. Update the Privacy page, and switch PostHog from cookieless to identified users with consent
+- [ ] **Turn PostHog on** (moved from Phase 2; the code shipped there and stays silent without a key):
+  - Create an EU project and put its key in `.env` as `VITE_POSTHOG_KEY` before `bun run deploy`
+  - Turn on "Discard client IP data" in the project settings
+  - Build the funnel (home → search → brand viewed → sign in started → sign in completed, then account created) and a dashboard of `channel_loaded` and `analysis_loaded` ms, cached vs not
 - [ ] Move existing signed-in visitors over: a Firecrawl cookie with no account keeps working until it expires
 
 ### 4b. Landing page (signed out)
