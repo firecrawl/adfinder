@@ -96,7 +96,7 @@ Still open, with Firecrawl (tracked in Phase 0): Particle's exact attribution wo
 
 ---
 
-## Phase 2: Speed up the first search
+## Phase 2: Speed up the first search [~]
 
 A cached brand loads in about 0.1–0.4s per channel. A brand nobody has searched yet is slow. Measure a cold search before and after with Phase 0's analytics and PostHog, and write the numbers here. This comes before the dashboard because every dashboard refresh is a cold search.
 
