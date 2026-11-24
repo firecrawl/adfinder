@@ -14,3 +14,18 @@ Shared style, appended to each prompt:
 | `happy-pair` | Two colleagues at a desk, one pointing at an ad thumbnail on a large monitor and laughing, the other smiling with arms crossed, a small agency studio at night, plants and a whiteboard softly out of focus. | 01661597-6377-436f-92e4-97d010d8618a |
 
 These are generated people, not customers or real users, so the page must not present them as testimonials.
+
+## Round 2: the Ad Finder dashboard on screen
+
+Model `nano_banana_2_1`, 5:4, 2k, thinking `high` (1.5 credits each), with one image reference: a 1440×900 screenshot of the direction-B dashboard mockup (dark). Style appended to each prompt:
+
+> The computer screen shows the attached screenshot exactly: the Ad Finder dashboard titled 'Your brands' with brand cards, ad thumbnails and a 'What changed' list on the right. Reproduce that screen faithfully and keep it legible, as a real screen photographed at an angle with a slight glare. Candid documentary photo taken on a full-frame camera with a 35mm lens at f/2, natural light falloff, a little sensor grain, real skin texture with pores and slight asymmetry, ordinary clothes, a lived-in desk with cables and a mug. Evening, the room lit by a warm desk lamp and the screen's glow, with a hint of orange (#FF5A1F) light. Not cinematic, not stock-photo, no perfect symmetry, no extra text or logos anywhere except what is on the screen.
+
+| File | Prompt | Job | Screen |
+|-|-|-|-|
+| `r2-closeup` | Over-the-shoulder view of someone working at a large monitor, their shoulder and the back of their head soft in the foreground, hands on the keyboard, the monitor filling most of the frame and sharp. | 2dfabbb4-08b9-4584-a7da-d9ecfc024ad4 | Nearly all text correct; small slips ("affers"); an LG logo on the bezel |
+| `r2-happy` | A founder in his late 20s at his desk, turned toward a large monitor, smiling and laughing at what he sees on it, one hand raised mid-gesture, seen from the side and slightly behind so the screen is clearly visible. | ebb30883-8e75-4c34-8f04-025e0a5c615d | Layout right, small text garbled |
+| `r2-pair` | Two colleagues at one desk looking at a large monitor together, one pointing at a brand card on the screen and grinning, the other leaning in with a coffee, a small agency office, seen from behind and to the side so the screen is clearly visible. | 3168d747-0b4f-41ad-9d00-82f6f6e73cd8 | Layout right, small text garbled |
+| `r2-focused` | A marketing strategist in her early 30s sitting at a desk, leaning in toward a large monitor and reading it closely, one hand on the mouse, seen from slightly behind and to the side so both her face in profile and the whole screen are visible. | d13e0c9d-6a56-495b-8ca6-5c2aa5a46f2f | Most garbled; an Apple logo on the monitor |
+
+The screen shows real brands' ads and logos (AG1, Factor, HelloFresh), as the live product does. Before this goes on the public homepage, either composite the real screenshot onto the chosen photo's screen (crisp text, no model slips) or regenerate the screen from a dashboard with neutral demo brands, so no brand appears to endorse Ad Finder.

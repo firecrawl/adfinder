@@ -28,3 +28,7 @@ body{background-image:radial-gradient(var(--dot) 1px,transparent 1.2px);backgrou
   .hero.with-media h1{font-size:44px}
   .hero-media{order:0;aspect-ratio:16/10;border-radius:18px}
 }
+/* Round 2 photos show the dashboard on screen, so the frame is landscape to keep the screen in view. */
+.hero.with-media.wide{grid-template-columns:minmax(0,0.9fr) minmax(0,1.1fr)}
+.hero.with-media.wide .hero-media{aspect-ratio:5/4}
+@media (max-width:900px){.hero.with-media.wide{grid-template-columns:1fr}.hero.with-media.wide .hero-media{aspect-ratio:5/4}}
