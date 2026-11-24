@@ -32,6 +32,7 @@ Anyone can spend the site's language-model key today.
 - [ ] **Ask Firecrawl** (Phase 1 shipped assuming "no" to both; a "yes" to question 1 would allow per-user podcast caching):
   1. Can data fetched with visitor A's key be shown to visitor B, through the site and through `/mcp`?
   2. Can analyses built from Particle or Similarweb data (summary, compare) be cached and shared?
+  3. What are Upspring's rate limits on `ads/browse` and the reviews providers? Phase 2 saw waits of a minute or more even with a minute between brands
 
   Write the answers here.
 
@@ -96,7 +97,7 @@ Still open, with Firecrawl (tracked in Phase 0): Particle's exact attribution wo
 
 ---
 
-## Phase 2: Speed up the first search [~]
+## Phase 2: Speed up the first search [x]
 
 A cached brand loads in about 0.1–0.4s per channel. A brand nobody has searched yet is slow. Measure a cold search before and after with Phase 0's analytics and PostHog, and write the numbers here. This comes before the dashboard because every dashboard refresh is a cold search.
 
@@ -121,7 +122,7 @@ So a cold brand shows Google in under a second, but its summary waits for the sl
 - [x] **Calls that run one after another:** Meta's domain and name searches now run together (both always ran), and BBB's two candidate profiles are checked together. Podcasts already run shows, segments and timeseries in parallel after the sponsor lookup
 - [x] **Start the analyses without waiting for every channel:**
   - Client: `useBrand` asks for the analyses as the page opens
-  - Server: `everything()` stops waiting after 25s (`ANALYSIS_DEADLINE`) and analyses what has arrived, unless nothing has. Slow channels carry on in their own `Research` objects and are cached when done. The cron and stale refreshes still wait for everything
+  - Server: `everything()` stops waiting after 20s (`ANALYSIS_DEADLINE`; 25s at first, lowered after the live test below) and analyses what has arrived, unless nothing has. Slow channels carry on in their own `Research` objects and are cached when done. The cron and stale refreshes still wait for everything
   - An analysis made that way is marked `partial`, returned but never cached. Once every channel has arrived the page asks again and gets the full one, which is cached as usual
   - Checked locally with the deadline at 3s: a partial summary in 5.7s while reviews took 12.9s, nothing cached; the next request built and cached the full one
 - [x] **Space out the house key's browse calls:** the featured-brands cron waits 60s between brands (about 4 more minutes per run, well inside the 15-minute cron limit)
@@ -132,14 +133,25 @@ So a cold brand shows Google in under a second, but its summary waits for the sl
   - EU host, memory persistence (no cookies or local storage), no person profiles, no click autocapture, no session recording. Page views and web vitals
   - Events: `search`, `brand_viewed`, `tab_opened`, `compare_started`, `sign_in_started` / `sign_in_completed`, `channel_loaded` (ms, cached, ok), `analysis_loaded` (ms, partial, ok). Never a key, a cookie or sign-in form input
   - The Privacy page names PostHog and what it records
-- [ ] Dropped: **show Meta's brief before its ads.** The browse rate limit mostly hits when one account looks up several brands within a minute (the cron, a comparison). The analysis deadline already stops it holding up the summary, and splitting the channel would change its cache entry, the MCP output and the Meta tab. Revisit if double3 shows visitors waiting often
-- [ ] Dropped: **pre-warm the 50 most searched brands.** Since Phase 1, any brand opened at least every 3 days stays warm through stale-while-revalidate, which is exactly the popular ones. A queue would mostly refresh brands nobody is looking at, at about 400 credits each on the house key
-- [ ] Dropped: starting channels in parallel with `/api/resolve`. Cache keys use `domain || name`, so a name-only run and the later domain run would pay twice, and podcasts and UGC match on the domain. Resolve also only runs for free-typed names
+
+Dropped:
+- **Show Meta's brief before its ads.** The browse rate limit mostly hits when one account looks up several brands within a minute (the cron, a comparison). The analysis deadline already stops it holding up the summary, and splitting the channel would change its cache entry, the MCP output and the Meta tab. Revisit if double3 shows visitors waiting often
+- **Pre-warm the 50 most searched brands.** Since Phase 1, any brand opened at least every 3 days stays warm through stale-while-revalidate, which is exactly the popular ones. A queue would mostly refresh brands nobody is looking at, at about 400 credits each on the house key
+- **Start channels in parallel with `/api/resolve`.** Cache keys use `domain || name`, so a name-only run and the later domain run would pay twice, and podcasts and UGC match on the domain. Resolve also only runs for free-typed names
 
 **Done when:** a new brand shows its first channel in under 5s and the summary in under 30s.
-- First channel: Google answers in under a second cold (0.8s average before these changes)
-- Summary: at most 25s of waiting plus the model (3.6s average), so about 29s even when Meta is rate-limited
-- To confirm after deploying: `avg(double1)` and `avg(double3)` per channel in Analytics Engine against the table above (PostHog's timings come with Phase 4)
+
+After, on the live site on 24 Nov (version `8fab4952`), three brands nobody had searched, timed in Analytics Engine with the 5 cacheable channels and the summary started together:
+
+| Brand | First channel | Summary | Meta | Reviews |
+|-|-|-|-|-|
+| Olipop | Google 0.7s | 8.3s | 5.4s | 0.9s |
+| Bombas | Google 0.5s | 27.7s | 62.7s, 116s of rate-limit waits | 1.2s |
+| Ridge | Google 1.4s | 29.7s | 63.4s, 114s of waits | 62.1s, 181s of waits |
+
+- Both targets met: the first channel in 0.5–1.4s, the summary in 8–30s (30–90s before)
+- Ridge's 29.7s left no margin, so the deadline went from 25s to 20s. Every channel that wasn't rate-limited arrived within 4s, so the shorter deadline loses nothing the longer one would have caught
+- Rate limits hit 2 of 3 brands despite a minute between them (waits are summed across parallel calls, so they exceed the wall time). The seed key had been used heavily that day; visitors on their own keys may see fewer. Asked about in Phase 0, question 3. If double3 keeps showing this for visitors, reconsider showing Meta's brief before its ads (dropped above)
 
 ---
 

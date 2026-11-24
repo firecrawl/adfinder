@@ -126,7 +126,7 @@ export function useBrand(brand: Brand, epoch: number) {
     const shared = Promise.all(
       loaded.filter((_, i) => CACHE_POLICY[CHANNEL_LIST[i]!] === "shared"),
     );
-    // The server stops waiting for slow channels after 25s and marks what it made from the rest as
+    // The server stops waiting for slow channels after 20s and marks what it made from the rest as
     // partial. Once every channel has arrived, ask again for the full one.
     const analyse = (name: keyof Analyses, fresh = false) => {
       const path = `/api/${name}`;
