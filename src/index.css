@@ -672,6 +672,42 @@ p {
   height: 12px;
 }
 
+.progress {
+  margin: -10px 0 24px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.progress ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.progress li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.progress li small {
+  color: var(--faint);
+}
+.progress li.ok svg {
+  color: var(--good);
+}
+.progress li.error svg {
+  color: var(--faint);
+}
+.progress .spin {
+  width: 12px;
+  height: 12px;
+}
+.progress p {
+  margin: 8px 0 0;
+  color: var(--faint);
+}
+
 .stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));

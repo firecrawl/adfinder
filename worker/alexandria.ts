@@ -7,7 +7,7 @@ export class ApiError extends Error {
   }
 }
 
-// Alexandria capability calls, plus `html` for a page's rendered HTML (the Meta Ad Library fallback).
+// Alexandria capability calls, plus `html` for a page's raw HTML (the Meta Ad Library fallback).
 export type Alexandria = ((
   provider: string,
   capability: string,
@@ -18,9 +18,10 @@ export type Alexandria = ((
 
 const FIRECRAWL = "https://api.firecrawl.dev/v2";
 
-// Adds up the Firecrawl credits a job spends, for the analytics events.
-export type Meter = { credits: number };
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+// Adds up the Firecrawl credits a job spends, and the time it spent waiting out rate limits, for the
+// analytics events.
+export type Meter = { credits: number; waitedMs: number };
+export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 async function post(
   key: string,
@@ -40,7 +41,9 @@ async function post(
       throw new ApiError("Firecrawl rejected this API key.", 401);
     if (r.status === 402) throw new ApiError("This Firecrawl account is out of credits.", 402);
     if (r.status === 429) {
-      await sleep((Number(String(j.error).match(/retry after (\d+)s/)?.[1] ?? 10) + 1) * 1000);
+      const ms = (Number(String(j.error).match(/retry after (\d+)s/)?.[1] ?? 10) + 1) * 1000;
+      if (meter) meter.waitedMs += ms;
+      await sleep(ms);
       continue;
     }
     if (meter)
@@ -52,7 +55,9 @@ async function post(
     const out = pick(j);
     if (out.data !== undefined) return out.data;
     if (out.retryAfter === undefined) throw new ApiError(out.error ?? "No data returned", 502);
-    await sleep((out.retryAfter + attempt * 2) * 1000);
+    const ms = (out.retryAfter + attempt * 2) * 1000;
+    if (meter) meter.waitedMs += ms;
+    await sleep(ms);
   }
   throw new ApiError("Firecrawl is still rate-limiting this account. Try again in a minute.", 429);
 }
@@ -77,12 +82,8 @@ export function alexandriaFor(key: string, meter?: Meter): Alexandria {
       {
         url,
         formats: ["rawHtml"],
-        waitFor: 3000,
-        // The Ad Library loads more cards as you scroll.
-        actions: [1, 2, 3, 4].flatMap(() => [
-          { type: "scroll", direction: "down" },
-          { type: "wait", milliseconds: 1500 },
-        ]),
+        // No waiting or scrolling: the results are read from JSON embedded in the first response, and
+        // cards loaded by scrolling never reach it (checked: 29 ads either way, 11s slower with 4 scrolls).
         onlyMainContent: false,
         timeout: 90_000,
       },

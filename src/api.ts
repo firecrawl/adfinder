@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { CACHE_POLICY, CHANNEL_LIST } from "../shared/channels";
+import { track } from "./analytics";
 import type {
   Brand,
   Channel,
@@ -39,8 +40,10 @@ export async function api<T>(path: string, body?: unknown): Promise<T> {
 // it) doesn't ask the server again. Failures are dropped so they can be retried.
 const memo = new Map<string, Promise<unknown>>();
 export const clearMemo = () => memo.clear();
-function load<T>(path: string, body: unknown): Promise<T> {
-  const key = `${path} ${JSON.stringify(body)}`;
+const memoKey = (path: string, body: unknown) => `${path} ${JSON.stringify(body)}`;
+function load<T>(path: string, body: unknown, fresh = false): Promise<T> {
+  const key = memoKey(path, body);
+  if (fresh) memo.delete(key);
   let p = memo.get(key) as Promise<T> | undefined;
   if (!p) {
     p = api<T>(path, body);
@@ -61,18 +64,21 @@ export type Load<T> =
   | { status: "loading" }
   | { status: "ok"; data: T }
   | { status: "error"; error: string; auth?: string };
+type Analyses = { summary: Summary; hooks: HookPatterns; complaints: Complaints };
 export type BrandState = { [K in Channel]: Load<ChannelData[K]> } & {
-  summary: Load<Summary> | null;
-  hooks: Load<HookPatterns> | null;
-  complaints: Load<Complaints> | null;
+  [K in keyof Analyses]: Load<Analyses[K]>;
+} & {
+  // Shared channels already cached for this brand; null until known.
+  cached: Channel[] | null;
 };
 
 const loading = (): BrandState =>
   ({
     ...Object.fromEntries(CHANNEL_LIST.map((c) => [c, { status: "loading" }])),
-    summary: null,
-    hooks: null,
-    complaints: null,
+    summary: { status: "loading" },
+    hooks: { status: "loading" },
+    complaints: { status: "loading" },
+    cached: null,
   }) as BrandState;
 const fail = (e: unknown) => ({
   status: "error" as const,
@@ -88,35 +94,58 @@ export function useBrand(brand: Brand, epoch: number) {
     const set = (patch: Partial<BrandState>) =>
       live &&
       setStore((s) => ({ id, state: { ...(s?.id === id ? s.state : loading()), ...patch } }));
-    const loaded = CHANNEL_LIST.map((ch) =>
-      load(`/api/channel/${ch}`, brand).then(
-        (data) => (set({ [ch]: { status: "ok", data } }), true),
-        (e) => (set({ [ch]: fail(e) }), false),
-      ),
+    const started = performance.now();
+    const ms = () => Math.round(performance.now() - started);
+    // Asked on every visit: the channels loaded since the last one may have filled the cache.
+    const cached = api<{ cached: Channel[] }>("/api/cached", brand).then(
+      (r) => (set({ cached: r.cached }), r.cached),
+      () => null,
     );
-    // Analyses only use the shared channels, so they don't wait on the live ones.
-    void Promise.all(loaded.filter((_, i) => CACHE_POLICY[CHANNEL_LIST[i]!] === "shared")).then(
-      (oks) => {
-        if (!oks.some(Boolean)) return;
-        set({
-          summary: { status: "loading" },
-          hooks: { status: "loading" },
-          complaints: { status: "loading" },
-        });
-        load<Summary>("/api/summary", brand).then(
-          (data) => set({ summary: { status: "ok", data } }),
-          (e) => set({ summary: fail(e) }),
+    const loaded = CHANNEL_LIST.map((ch) => {
+      // Already loaded this session: nothing was fetched, so there's no timing to record.
+      const remembered = memo.has(memoKey(`/api/channel/${ch}`, brand));
+      const done = (ok: boolean) => {
+        if (remembered) return;
+        const at = ms();
+        void cached.then((c) =>
+          track("channel_loaded", { channel: ch, ms: at, cached: c && c.includes(ch), ok }),
         );
-        load<HookPatterns>("/api/hooks", brand).then(
-          (data) => set({ hooks: { status: "ok", data } }),
-          (e) => set({ hooks: fail(e) }),
-        );
-        load<Complaints>("/api/complaints", brand).then(
-          (data) => set({ complaints: { status: "ok", data } }),
-          (e) => set({ complaints: fail(e) }),
-        );
-      },
+      };
+      return load(`/api/channel/${ch}`, brand).then(
+        (data) => {
+          set({ [ch]: { status: "ok", data } });
+          done(true);
+        },
+        (e) => {
+          set({ [ch]: fail(e) });
+          done(false);
+        },
+      );
+    });
+    // Analyses are built from the shared channels only.
+    const shared = Promise.all(
+      loaded.filter((_, i) => CACHE_POLICY[CHANNEL_LIST[i]!] === "shared"),
     );
+    // The server stops waiting for slow channels after 25s and marks what it made from the rest as
+    // partial. Once every channel has arrived, ask again for the full one.
+    const analyse = (name: keyof Analyses, fresh = false) => {
+      const path = `/api/${name}`;
+      const remembered = !fresh && memo.has(memoKey(path, brand));
+      const done = (ok: boolean, partial = false) =>
+        remembered || track("analysis_loaded", { analysis: name, ms: ms(), partial, ok });
+      void load<Analyses[typeof name] & { partial?: true }>(path, brand, fresh).then(
+        (data) => {
+          set({ [name]: { status: "ok", data } });
+          done(true, !!data.partial);
+          if (data.partial && !fresh) void shared.then(() => analyse(name, true));
+        },
+        (e) => {
+          done(false);
+          if (!fresh) set({ [name]: fail(e) });
+        },
+      );
+    };
+    for (const name of ["summary", "hooks", "complaints"] as const) analyse(name);
     return () => {
       live = false;
     };

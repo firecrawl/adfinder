@@ -9,7 +9,7 @@ import { CACHE_POLICY, SHARED_CHANNELS } from "../shared/channels";
 import { llmsTxt } from "../shared/docs";
 import { FEATURED } from "../shared/featured";
 import type { Brand, Channel, ChannelData } from "../shared/types";
-import { ApiError, alexandriaFor, credits, webSearch, type Meter } from "./alexandria";
+import { ApiError, alexandriaFor, credits, sleep, webSearch, type Meter } from "./alexandria";
 import {
   compare,
   complaintsVsAds,
@@ -257,7 +257,7 @@ app.post("/api/resolve", async (c) => {
   }
   const key = await apiKey(c);
   if (!key) throw new ApiError(SIGN_IN.channel, 401);
-  const meter = { credits: 0 };
+  const meter = { credits: 0, waitedMs: 0 };
   const found = await officialSite(key, name, meter).catch((e: unknown) => {
     track(c.env, event, "error", started, meter);
     throw e;
@@ -383,13 +383,18 @@ async function run(
 ): Promise<unknown> {
   if (job.kind === "channel") return CHANNELS[job.ch](alexandriaFor(key, meter), job.brand);
   if (job.kind === "ad") return metaAdDetail(alexandriaFor(key, meter), job.id);
-  const data = await everything({ env, key: async () => key, refreshStale: refresh }, job.brand);
-  return ANALYSES[job.name][1](env, job.brand, data);
+  const { data, partial } = await everything(
+    { env, key: async () => key, refreshStale: refresh },
+    job.brand,
+    refresh ? undefined : ANALYSIS_DEADLINE,
+  );
+  const value = await ANALYSES[job.name][1](env, job.brand, data);
+  return partial ? { ...value, partial: true } : value;
 }
 
 async function compute(env: Env, job: Job, key: string, refresh = false): Promise<unknown> {
   const started = Date.now();
-  const meter = { credits: 0 };
+  const meter = { credits: 0, waitedMs: 0 };
   try {
     const value = await run(env, job, key, meter, refresh);
     track(env, eventOf(job), "miss", started, meter);
@@ -400,8 +405,9 @@ async function compute(env: Env, job: Job, key: string, refresh = false): Promis
   }
 }
 
-// One Analytics Engine row per lookup: blobs are kind, name, outcome and brand; doubles are milliseconds
-// and Firecrawl credits. Analyses report 0 credits because their channel lookups are counted separately.
+// One Analytics Engine row per lookup: blobs are kind, name, outcome and brand; doubles are milliseconds,
+// Firecrawl credits, and milliseconds spent waiting out rate limits (summed across parallel calls, so it
+// can exceed the first). Analyses report 0 for both because their channel lookups are counted separately.
 type Event = { kind: string; name: string; brand: string };
 const eventOf = (job: Job): Event =>
   job.kind === "channel"
@@ -419,7 +425,7 @@ function track(
   env.EVENTS?.writeDataPoint({
     indexes: [e.name],
     blobs: [e.kind, e.name, outcome, e.brand],
-    doubles: [Date.now() - started, meter?.credits ?? 0],
+    doubles: [Date.now() - started, meter?.credits ?? 0, meter?.waitedMs ?? 0],
   });
 }
 
@@ -449,6 +455,9 @@ type Meta = { fetchedAt: number };
 const isStale = (meta: Meta | null) => !meta || Date.now() - meta.fetchedAt > STALE_AFTER;
 
 async function save(env: Env, job: Job, value: unknown) {
+  // An analysis built before every channel arrived goes to whoever asked but isn't kept, so the next
+  // request builds it from the complete data.
+  if ((value as { partial?: boolean } | null)?.partial) return;
   await env.CACHE.put(keyOf(job), JSON.stringify(value), {
     expirationTtl: ttlOf(job, value),
     metadata: { fetchedAt: Date.now() } satisfies Meta,
@@ -550,6 +559,20 @@ app.post("/api/channel/:channel", async (c) => {
   return c.json(await channel(ctxOf(c), brandFrom(await c.req.json()), ch));
 });
 
+// Which of a brand's shared channels are cached, so the page can say what a search will cost before it
+// finishes.
+app.post("/api/cached", async (c) => {
+  const brand = brandFrom(await c.req.json());
+  const cached = await Promise.all(
+    SHARED_CHANNELS.map(async (ch) => {
+      const body = await c.env.CACHE.get(keyOf({ kind: "channel", ch, brand }), "stream");
+      await body?.cancel();
+      return body ? [ch] : [];
+    }),
+  );
+  return c.json({ cached: cached.flat() });
+});
+
 app.post("/api/meta-ad/:id", async (c) => {
   const id = c.req.param("id");
   if (!/^[A-Za-z0-9_-]{4,64}$/.test(id)) return c.json({ error: "Bad ad id" }, 400);
@@ -587,14 +610,37 @@ app.all("/mcp", (c) => {
 });
 
 // ---------- language model ----------
+// A visitor's analysis stops waiting for slow channels after this long and works from what has arrived.
+// The slow ones carry on in their own Research objects and are cached when they finish.
+const ANALYSIS_DEADLINE = 25_000;
+
 // Analyses are cached and shared, so they're built only from channels that may be shared.
-async function everything(ctx: Ctx, brand: Brand): Promise<Partial<ChannelData>> {
-  const settled = await Promise.allSettled(SHARED_CHANNELS.map((ch) => channel(ctx, brand, ch)));
-  const data = Object.fromEntries(
-    settled.flatMap((r, i) => (r.status === "fulfilled" ? [[SHARED_CHANNELS[i], r.value]] : [])),
-  );
-  if (!Object.keys(data).length) throw (settled[0] as PromiseRejectedResult).reason;
-  return data;
+async function everything(
+  ctx: Ctx,
+  brand: Brand,
+  deadline?: number,
+): Promise<{ data: Partial<ChannelData>; partial: boolean }> {
+  const data: Partial<Record<Channel, unknown>> = {};
+  let failure: unknown;
+  const all = Promise.all(
+    SHARED_CHANNELS.map((ch) =>
+      channel(ctx, brand, ch).then(
+        (v) => void (data[ch] = v),
+        (e) => void (failure ??= e),
+      ),
+    ),
+  ).then(() => true);
+  let done = true;
+  if (deadline) {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const late = new Promise<false>((r) => (timer = setTimeout(() => r(false), deadline)));
+    done = await Promise.race([all, late]);
+    if (timer) clearTimeout(timer);
+  } else await all;
+  // Nothing has arrived yet: there's nothing to analyse, so keep waiting.
+  if (!done && !Object.keys(data).length) done = await all;
+  if (!Object.keys(data).length) throw failure;
+  return { data: { ...data } as Partial<ChannelData>, partial: !done };
 }
 
 for (const name of Object.keys(ANALYSES) as Analysis[]) {
@@ -654,10 +700,12 @@ async function seedFeatured(env: Env) {
   const seedKey = env.SEED_FIRECRAWL_API_KEY;
   if (!seedKey)
     return console.warn("SEED_FIRECRAWL_API_KEY is not set; featured brands not refreshed");
-  for (const brand of FEATURED) {
+  for (const [i, brand] of FEATURED.entries()) {
+    // Upspring rate-limits ads/browse when one account calls it again within about a minute.
+    if (i > 0) await sleep(60_000);
     const ctx: Ctx = { env, key: async () => seedKey, refresh: true };
     try {
-      const data = await everything(ctx, brand);
+      const { data } = await everything(ctx, brand);
       if (env.GLM_API_KEY)
         await Promise.allSettled(
           (Object.keys(ANALYSES) as Analysis[]).map(async (name) => {

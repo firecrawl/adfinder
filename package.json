@@ -15,6 +15,7 @@
     "@modelcontextprotocol/sdk": "1.32.2",
     "hono": "4.13.14",
     "lucide-react": "1.62.0",
+    "posthog-js": "1.447.6",
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "zod": "4.6.7"
